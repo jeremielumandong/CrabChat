@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod dcc;
 mod irc;
+mod logging;
 mod ui;
 
 use crate::app::action::Action;
@@ -10,6 +11,7 @@ use crate::app::handler;
 use crate::app::state::*;
 use crate::dcc::manager::DccManager;
 use crate::irc::manager::IrcManager;
+use crate::logging::ChatLogger;
 use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture, EventStream},
@@ -18,7 +20,7 @@ use crossterm::{
 };
 use futures::StreamExt;
 use ratatui::prelude::*;
-use std::io;
+use std::io::{self, Write};
 use tokio::sync::mpsc;
 
 #[tokio::main]
@@ -76,6 +78,7 @@ async fn run_app(
     let mut state = AppState::new(cfg.clone());
     let mut irc_manager = IrcManager::new(event_tx.clone());
     let dcc_manager = DccManager::new(event_tx.clone());
+    let mut chat_logger = ChatLogger::new(&cfg.logging);
 
     // Spawn terminal input task
     let term_tx = event_tx.clone();
@@ -121,6 +124,8 @@ async fn run_app(
                 channels: srv_cfg.channels.clone(),
                 users: Default::default(),
                 topics: Default::default(),
+                is_away: false,
+                alt_nick_index: 0,
             };
             state.add_server(server);
             let srv = state.get_server(server_id).unwrap();
@@ -148,6 +153,8 @@ async fn run_app(
             channels: Vec::new(),
             users: Default::default(),
             topics: Default::default(),
+            is_away: false,
+            alt_nick_index: 0,
         };
         state.add_server(server);
         let key = BufferKey::ServerStatus(server_id);
@@ -158,8 +165,10 @@ async fn run_app(
             state.system_message(&key, format!("  {}  ({}:{})", srv.name, srv.host, srv.port));
         }
         state.system_message(&key, String::new());
+        state.system_message(&key, "Server browser: /servers  or press F2".to_string());
         state.system_message(&key, "Quick connect:  /server connect <name>".to_string());
         state.system_message(&key, "Custom server:  /server add <name> <host:port>".to_string());
+        state.system_message(&key, "Channel list:   /channels or press F3 (when connected)".to_string());
         state.system_message(&key, "Help:           /help".to_string());
     }
 
@@ -172,6 +181,12 @@ async fn run_app(
         let Some(event) = event else { break };
 
         let actions = handler::handle_event(&mut state, event);
+
+        // Drain new_messages for logging
+        let new_msgs: Vec<_> = state.new_messages.drain(..).collect();
+        for (key, msg) in &new_msgs {
+            chat_logger.log_message(key, msg);
+        }
 
         // Process actions
         for action in actions {
@@ -252,6 +267,8 @@ async fn run_app(
                         channels: Vec::new(),
                         users: Default::default(),
                         topics: Default::default(),
+                        is_away: false,
+                        alt_nick_index: 0,
                     };
                     state.add_server(server);
                     let key = BufferKey::ServerStatus(server_id);
@@ -267,7 +284,7 @@ async fn run_app(
                     }
                 }
                 Action::DisconnectServer { server_id } => {
-                    irc_manager.disconnect(server_id);
+                    irc_manager.disconnect(server_id, None);
                     if let Some(srv) = state.get_server_mut(server_id) {
                         srv.status = ConnectionStatus::Disconnected;
                     }
@@ -288,15 +305,95 @@ async fn run_app(
                         }
                     }
                 }
-                Action::Quit => {
+                Action::Quit { message } => {
+                    state.quit_message = message;
                     state.should_quit = true;
+                }
+                Action::SendKick { server_id, channel, user, reason } => {
+                    if let Err(e) = irc_manager.send_kick(server_id, &channel, &user, reason.as_deref()) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Kick failed: {}", e));
+                    }
+                }
+                Action::SendMode { server_id, target, modes } => {
+                    if let Err(e) = irc_manager.send_mode(server_id, &target, &modes) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Mode failed: {}", e));
+                    }
+                }
+                Action::SetTopic { server_id, channel, text } => {
+                    if let Err(e) = irc_manager.send_topic(server_id, &channel, &text) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Topic failed: {}", e));
+                    }
+                }
+                Action::SendNotice { server_id, target, text } => {
+                    if let Err(e) = irc_manager.send_notice(server_id, &target, &text) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Notice failed: {}", e));
+                    }
+                }
+                Action::SendWhois { server_id, nick } => {
+                    if let Err(e) = irc_manager.send_whois(server_id, &nick) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Whois failed: {}", e));
+                    }
+                }
+                Action::SendWho { server_id, target } => {
+                    if let Err(e) = irc_manager.send_who(server_id, &target) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Who failed: {}", e));
+                    }
+                }
+                Action::SetAway { server_id, message } => {
+                    if let Err(e) = irc_manager.send_away(server_id, message.as_deref()) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Away failed: {}", e));
+                    }
+                }
+                Action::SendRaw { server_id, command } => {
+                    if let Err(e) = irc_manager.send_raw(server_id, &command) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("Raw send failed: {}", e));
+                    }
+                }
+                Action::SendList { server_id } => {
+                    if let Err(e) = irc_manager.send_list(server_id) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("List failed: {}", e));
+                    }
+                }
+                Action::SendCtcp { server_id, target, command } => {
+                    if let Err(e) = irc_manager.send_ctcp(server_id, &target, &command) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("CTCP failed: {}", e));
+                    }
+                }
+                Action::SendCtcpReply { server_id, target, response } => {
+                    if let Err(e) = irc_manager.send_ctcp_reply(server_id, &target, &response) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("CTCP reply failed: {}", e));
+                    }
+                }
+                Action::SendIson { server_id, nicks } => {
+                    if let Err(e) = irc_manager.send_ison(server_id, &nicks) {
+                        let key = BufferKey::ServerStatus(server_id);
+                        state.error_message(&key, format!("ISON failed: {}", e));
+                    }
                 }
             }
         }
 
         if state.should_quit {
-            irc_manager.send_quit_all();
+            irc_manager.send_quit_all(state.quit_message.as_deref());
             break;
+        }
+
+        // Bell
+        if state.pending_bell {
+            let _ = io::stdout().write_all(b"\x07");
+            let _ = io::stdout().flush();
+            state.pending_bell = false;
         }
 
         // Conditional render (only if dirty)

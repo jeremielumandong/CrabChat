@@ -1,8 +1,10 @@
+use crate::app::action::Action;
 use crate::app::event::{ServerId, TransferId};
 use crate::config::AppConfig;
 use chrono::Local;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::IpAddr;
+use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BufferKey {
@@ -28,6 +30,7 @@ pub enum MessageKind {
     Join,
     Part,
     Quit,
+    Notice,
 }
 
 #[derive(Debug)]
@@ -78,6 +81,8 @@ pub struct ServerState {
     pub channels: Vec<String>,
     pub users: HashMap<String, Vec<ChannelUser>>,
     pub topics: HashMap<String, String>,
+    pub is_away: bool,
+    pub alt_nick_index: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -256,6 +261,234 @@ pub enum FocusPanel {
     UserList,
 }
 
+#[derive(Debug)]
+pub struct ServerBrowser {
+    pub visible: bool,
+    pub selected: usize,
+    pub scroll_offset: usize,
+}
+
+impl ServerBrowser {
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            selected: 0,
+            scroll_offset: 0,
+        }
+    }
+
+    pub fn toggle(&mut self) {
+        self.visible = !self.visible;
+        if self.visible {
+            self.selected = 0;
+            self.scroll_offset = 0;
+        }
+    }
+
+    pub fn move_up(&mut self) {
+        if self.selected > 0 {
+            self.selected -= 1;
+            if self.selected < self.scroll_offset {
+                self.scroll_offset = self.selected;
+            }
+        }
+    }
+
+    pub fn move_down(&mut self, total: usize) {
+        if total > 0 && self.selected + 1 < total {
+            self.selected += 1;
+        }
+    }
+
+    pub fn ensure_visible(&mut self, visible_rows: usize) {
+        if self.selected >= self.scroll_offset + visible_rows {
+            self.scroll_offset = self.selected.saturating_sub(visible_rows - 1);
+        }
+        if self.selected < self.scroll_offset {
+            self.scroll_offset = self.selected;
+        }
+    }
+}
+
+/// Strip mIRC color codes (\x03NN,MM) from a string
+fn strip_color_codes(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x03' {
+            // Skip up to 2 digits (foreground)
+            for _ in 0..2 {
+                if chars.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            // Skip optional comma + up to 2 digits (background)
+            if chars.peek() == Some(&',') {
+                chars.next();
+                for _ in 0..2 {
+                    if chars.peek().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+                        chars.next();
+                    } else {
+                        break;
+                    }
+                }
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+#[derive(Debug, Clone)]
+pub struct ChannelListEntry {
+    pub name: String,
+    pub users: usize,
+    pub topic: String,
+}
+
+#[derive(Debug)]
+pub struct ChannelBrowser {
+    pub visible: bool,
+    pub loading: bool,
+    pub channels: Vec<ChannelListEntry>,
+    pub filtered: Vec<usize>,
+    pub selected: usize,
+    pub scroll_offset: usize,
+    pub filter: String,
+    pub server_id: Option<ServerId>,
+    /// Cached channel lists per server, keyed by ServerId
+    pub cache: HashMap<ServerId, Vec<ChannelListEntry>>,
+}
+
+impl ChannelBrowser {
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            loading: false,
+            channels: Vec::new(),
+            filtered: Vec::new(),
+            selected: 0,
+            scroll_offset: 0,
+            filter: String::new(),
+            server_id: None,
+            cache: HashMap::new(),
+        }
+    }
+
+    /// Open the browser. Returns true if we need to fetch (no cache), false if cache hit.
+    pub fn open(&mut self, server_id: ServerId) -> bool {
+        self.visible = true;
+        self.selected = 0;
+        self.scroll_offset = 0;
+        self.filter.clear();
+        self.server_id = Some(server_id);
+
+        // Check cache
+        if let Some(cached) = self.cache.get(&server_id) {
+            self.channels = cached.clone();
+            self.loading = false;
+            self.apply_filter();
+            false // no fetch needed
+        } else {
+            self.channels.clear();
+            self.filtered.clear();
+            self.loading = true;
+            true // fetch needed
+        }
+    }
+
+    pub fn close(&mut self) {
+        self.visible = false;
+        self.loading = false;
+        // Keep channels for cache, don't clear
+    }
+
+    pub fn add_channel(&mut self, name: String, users: usize, topic: String) {
+        // Strip IRC formatting codes from topic for clean display
+        let clean_topic: String = topic.chars().filter(|&c| {
+            !matches!(c, '\x02' | '\x1D' | '\x1F' | '\x0F' | '\x16')
+        }).collect();
+        // Strip color codes (\x03 followed by optional digits)
+        let clean_topic = strip_color_codes(&clean_topic);
+        self.channels.push(ChannelListEntry { name, users, topic: clean_topic });
+    }
+
+    pub fn finish_loading(&mut self) {
+        self.loading = false;
+        // Sort by user count descending
+        self.channels.sort_by(|a, b| b.users.cmp(&a.users));
+        // Cache the result
+        if let Some(sid) = self.server_id {
+            self.cache.insert(sid, self.channels.clone());
+        }
+        self.apply_filter();
+    }
+
+    /// Force refresh: clear cache for this server and re-fetch
+    pub fn refresh(&mut self) {
+        if let Some(sid) = self.server_id {
+            self.cache.remove(&sid);
+        }
+        self.channels.clear();
+        self.filtered.clear();
+        self.selected = 0;
+        self.scroll_offset = 0;
+        self.loading = true;
+    }
+
+    pub fn apply_filter(&mut self) {
+        let filter_lower = self.filter.to_lowercase();
+        self.filtered = self.channels.iter().enumerate()
+            .filter(|(_, ch)| {
+                if filter_lower.is_empty() {
+                    return true;
+                }
+                ch.name.to_lowercase().contains(&filter_lower)
+                    || ch.topic.to_lowercase().contains(&filter_lower)
+            })
+            .map(|(i, _)| i)
+            .collect();
+        self.selected = 0;
+        self.scroll_offset = 0;
+    }
+
+    pub fn move_up(&mut self) {
+        if self.selected > 0 {
+            self.selected -= 1;
+        }
+    }
+
+    pub fn move_down(&mut self) {
+        if !self.filtered.is_empty() && self.selected + 1 < self.filtered.len() {
+            self.selected += 1;
+        }
+    }
+
+    pub fn ensure_visible(&mut self, visible_rows: usize) {
+        if self.selected >= self.scroll_offset + visible_rows {
+            self.scroll_offset = self.selected.saturating_sub(visible_rows - 1);
+        }
+        if self.selected < self.scroll_offset {
+            self.scroll_offset = self.selected;
+        }
+    }
+
+    pub fn selected_channel(&self) -> Option<&ChannelListEntry> {
+        self.filtered.get(self.selected)
+            .and_then(|&idx| self.channels.get(idx))
+    }
+}
+
+#[derive(Debug)]
+pub struct PendingRejoin {
+    pub server_id: ServerId,
+    pub channel: String,
+    pub rejoin_at: Instant,
+}
+
 pub struct AppState {
     pub config: AppConfig,
     pub servers: Vec<ServerState>,
@@ -270,6 +503,18 @@ pub struct AppState {
     pub dirty: bool,
     pub status_message: Option<String>,
     pub timestamp_format: String,
+    pub pending_actions: Vec<Action>,
+    pub pending_rejoins: Vec<PendingRejoin>,
+    pub ignore_list: HashSet<String>,
+    pub notify_list: HashSet<String>,
+    pub known_online: HashSet<String>,
+    pub pending_bell: bool,
+    pub quit_message: Option<String>,
+    pub new_messages: Vec<(BufferKey, Message)>,
+    pub last_ison_check: Instant,
+    pub server_browser: ServerBrowser,
+    pub channel_browser: ChannelBrowser,
+    pub tick_count: u64,
 }
 
 impl AppState {
@@ -289,6 +534,18 @@ impl AppState {
             dirty: true,
             status_message: None,
             timestamp_format,
+            pending_actions: Vec::new(),
+            pending_rejoins: Vec::new(),
+            ignore_list: HashSet::new(),
+            notify_list: HashSet::new(),
+            known_online: HashSet::new(),
+            pending_bell: false,
+            quit_message: None,
+            new_messages: Vec::new(),
+            last_ison_check: Instant::now(),
+            server_browser: ServerBrowser::new(),
+            channel_browser: ChannelBrowser::new(),
+            tick_count: 0,
         }
     }
 
@@ -329,6 +586,7 @@ impl AppState {
     pub fn add_message_to_buffer(&mut self, key: &BufferKey, msg: Message) {
         let max = self.config.ui.max_scrollback;
         let is_active = self.active_buffer.as_ref() == Some(key);
+        self.new_messages.push((key.clone(), msg.clone()));
         let buf = self.buffers.entry(key.clone()).or_insert_with(Buffer::new);
         buf.add_message(msg, max);
         if !is_active {

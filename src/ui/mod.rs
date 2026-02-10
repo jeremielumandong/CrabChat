@@ -1,6 +1,9 @@
+mod channel_browser;
 mod input_box;
 mod layout;
 mod message_area;
+pub mod mirc_colors;
+mod server_browser;
 mod server_tree;
 mod status_bar;
 mod theme;
@@ -9,10 +12,15 @@ mod user_list;
 
 use crate::app::state::AppState;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, List, ListItem};
+use ratatui::widgets::{Block, Borders, Gauge, List, ListItem};
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
+
+    // Fill entire background with dark theme color
+    let bg = Block::default().style(Style::default().bg(theme::Theme::BG_DARK));
+    frame.render_widget(bg, area);
+
     let app_layout = layout::compute_layout(area);
 
     server_tree::render(frame, app_layout.server_tree, state);
@@ -22,16 +30,23 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     user_list::render(frame, app_layout.user_list, state);
     render_status_panel(frame, app_layout.status_panel, state);
     status_bar::render(frame, app_layout.status_bar, state);
+
+    // Overlay popups (rendered last, on top)
+    server_browser::render(frame, state);
+    channel_browser::render(frame, state);
 }
 
 fn render_status_panel(frame: &mut Frame, area: Rect, state: &AppState) {
     let block = Block::default()
-        .title(" Status ")
+        .title(" ⇅ Transfers ")
         .title_style(theme::Theme::title())
         .borders(Borders::ALL)
-        .border_style(theme::Theme::border());
+        .border_type(theme::Theme::border_type())
+        .border_style(theme::Theme::border())
+        .style(theme::Theme::panel_bg());
 
-    let mut items: Vec<ListItem> = Vec::new();
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
 
     // Show pending DCC transfers
     let pending: Vec<_> = state
@@ -47,29 +62,60 @@ fn render_status_panel(frame: &mut Frame, area: Rect, state: &AppState) {
         .collect();
 
     if pending.is_empty() {
-        items.push(ListItem::new(Span::styled(
+        let items = vec![ListItem::new(Span::styled(
             " No active transfers",
-            Style::default().fg(Color::DarkGray),
-        )));
+            Style::default().fg(theme::Theme::TEXT_MUTED),
+        ))];
+        let list = List::new(items);
+        frame.render_widget(list, inner);
     } else {
-        for t in pending {
-            let pct = if t.size > 0 {
-                (t.received as f64 / t.size as f64 * 100.0) as u32
-            } else {
-                0
-            };
-            let status_str = match &t.status {
-                crate::app::state::DccTransferStatus::Pending => "pending".to_string(),
-                crate::app::state::DccTransferStatus::Active => format!("{}%", pct),
-                _ => "?".to_string(),
-            };
-            items.push(ListItem::new(Span::styled(
-                format!(" [{}] {} {}", t.id, t.filename, status_str),
-                Style::default().fg(Color::Yellow),
-            )));
+        // Use Layout to split inner area for each transfer
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                pending
+                    .iter()
+                    .map(|_| Constraint::Length(1))
+                    .collect::<Vec<_>>(),
+            )
+            .split(inner);
+
+        for (i, t) in pending.iter().enumerate() {
+            if i >= chunks.len() {
+                break;
+            }
+
+            match &t.status {
+                crate::app::state::DccTransferStatus::Pending => {
+                    let line = Line::from(vec![
+                        Span::styled("⏳ ", Style::default().fg(theme::Theme::ACCENT_AMBER)),
+                        Span::styled(
+                            format!("[{}] {} pending", t.id, t.filename),
+                            Style::default().fg(theme::Theme::ACCENT_AMBER),
+                        ),
+                    ]);
+                    let p = ratatui::widgets::Paragraph::new(line);
+                    frame.render_widget(p, chunks[i]);
+                }
+                crate::app::state::DccTransferStatus::Active => {
+                    let ratio = if t.size > 0 {
+                        (t.received as f64 / t.size as f64).min(1.0)
+                    } else {
+                        0.0
+                    };
+                    let pct = (ratio * 100.0) as u32;
+                    let label = format!("{} {}%", t.filename, pct);
+
+                    let gauge = Gauge::default()
+                        .ratio(ratio)
+                        .label(Span::styled(label, theme::Theme::gauge_label()))
+                        .gauge_style(theme::Theme::gauge_filled())
+                        .use_unicode(true);
+
+                    frame.render_widget(gauge, chunks[i]);
+                }
+                _ => {}
+            }
         }
     }
-
-    let list = List::new(items).block(block);
-    frame.render_widget(list, area);
 }

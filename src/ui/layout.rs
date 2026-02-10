@@ -15,20 +15,21 @@ pub fn compute_layout(area: Rect) -> AppLayout {
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(5),      // Main content
-            Constraint::Length(1),   // Status bar
+            Constraint::Min(5),    // Main content
+            Constraint::Length(1), // Status bar
         ])
         .split(area);
 
     let content = main_chunks[0];
     let status_bar = main_chunks[1];
 
-    // Horizontal: left panel | right content
+    // Horizontal: left panel | gap | right content
     let h_chunks = Layout::default()
         .direction(Direction::Horizontal)
+        .spacing(1)
         .constraints([
-            Constraint::Length(20),  // Left panel
-            Constraint::Min(30),    // Right content
+            Constraint::Length(22), // Left panel (wider)
+            Constraint::Min(30),   // Right content
         ])
         .split(content);
 
@@ -53,9 +54,9 @@ pub fn compute_layout(area: Rect) -> AppLayout {
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1),   // Topic bar
-            Constraint::Min(5),     // Messages
-            Constraint::Length(3),   // Input box
+            Constraint::Length(1), // Topic bar
+            Constraint::Min(5),   // Messages
+            Constraint::Length(3), // Input box
         ])
         .split(right_panel);
 

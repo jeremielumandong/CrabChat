@@ -1,9 +1,11 @@
 pub mod model;
+pub mod nickname;
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 pub use model::AppConfig;
+pub use model::LoggingConfig;
 
 fn config_path() -> PathBuf {
     dirs::config_dir()

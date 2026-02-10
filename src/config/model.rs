@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use super::nickname::generate_nickname;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -9,6 +11,12 @@ pub struct AppConfig {
     pub ui: UiConfig,
     #[serde(default = "default_dcc")]
     pub dcc: DccConfig,
+    #[serde(default)]
+    pub behavior: BehaviorConfig,
+    #[serde(default)]
+    pub logging: LoggingConfig,
+    #[serde(default)]
+    pub ctcp: CtcpConfig,
 }
 
 impl Default for AppConfig {
@@ -17,18 +25,22 @@ impl Default for AppConfig {
             servers: default_servers(),
             ui: default_ui(),
             dcc: default_dcc(),
+            behavior: BehaviorConfig::default(),
+            logging: LoggingConfig::default(),
+            ctcp: CtcpConfig::default(),
         }
     }
 }
 
 fn default_servers() -> Vec<ServerConfig> {
+    let nick = generate_nickname();
     vec![
         ServerConfig {
             name: "libera".into(),
             host: "irc.libera.chat".into(),
             port: 6697,
             tls: true,
-            nickname: "crabchat_user".into(),
+            nickname: nick.clone(),
             username: None,
             realname: None,
             password: None,
@@ -36,55 +48,16 @@ fn default_servers() -> Vec<ServerConfig> {
             sasl_mechanism: None,
             channels: vec!["#crabchat".into()],
             auto_connect: false,
-        },
-        ServerConfig {
-            name: "undernet".into(),
-            host: "irc.undernet.org".into(),
-            port: 6667,
-            tls: false,
-            nickname: "crabchat_user".into(),
-            username: None,
-            realname: None,
-            password: None,
-            nick_password: None,
-            sasl_mechanism: None,
-            channels: vec![],
-            auto_connect: false,
-        },
-        ServerConfig {
-            name: "efnet".into(),
-            host: "irc.efnet.org".into(),
-            port: 6697,
-            tls: true,
-            nickname: "crabchat_user".into(),
-            username: None,
-            realname: None,
-            password: None,
-            nick_password: None,
-            sasl_mechanism: None,
-            channels: vec![],
-            auto_connect: false,
-        },
-        ServerConfig {
-            name: "dalnet".into(),
-            host: "irc.dal.net".into(),
-            port: 6697,
-            tls: true,
-            nickname: "crabchat_user".into(),
-            username: None,
-            realname: None,
-            password: None,
-            nick_password: None,
-            sasl_mechanism: None,
-            channels: vec![],
-            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
         },
         ServerConfig {
             name: "oftc".into(),
             host: "irc.oftc.net".into(),
             port: 6697,
             tls: true,
-            nickname: "crabchat_user".into(),
+            nickname: nick.clone(),
             username: None,
             realname: None,
             password: None,
@@ -92,13 +65,67 @@ fn default_servers() -> Vec<ServerConfig> {
             sasl_mechanism: None,
             channels: vec![],
             auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "efnet".into(),
+            host: "irc.efnet.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "undernet".into(),
+            host: "irc.undernet.org".into(),
+            port: 6667,
+            tls: false,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "dalnet".into(),
+            host: "irc.dal.net".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
         },
         ServerConfig {
             name: "rizon".into(),
             host: "irc.rizon.net".into(),
             port: 6697,
             tls: true,
-            nickname: "crabchat_user".into(),
+            nickname: nick.clone(),
             username: None,
             realname: None,
             password: None,
@@ -106,6 +133,247 @@ fn default_servers() -> Vec<ServerConfig> {
             sasl_mechanism: None,
             channels: vec![],
             auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "quakenet".into(),
+            host: "irc.quakenet.org".into(),
+            port: 6667,
+            tls: false,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "ircnet".into(),
+            host: "open.ircnet.net".into(),
+            port: 6667,
+            tls: false,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "snoonet".into(),
+            host: "irc.snoonet.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "gamesurge".into(),
+            host: "irc.gamesurge.net".into(),
+            port: 6667,
+            tls: false,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "esper".into(),
+            host: "irc.esper.net".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "irc-hispano".into(),
+            host: "irc.irc-hispano.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "hackint".into(),
+            host: "irc.hackint.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "twitch".into(),
+            host: "irc.chat.twitch.tv".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "slashnet".into(),
+            host: "irc.slashnet.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "chatspike".into(),
+            host: "irc.chatspike.net".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "rezosup".into(),
+            host: "irc.rezosup.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "chathispano".into(),
+            host: "irc.chathispano.com".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "europnet".into(),
+            host: "irc.europnet.org".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
+        },
+        ServerConfig {
+            name: "interlinked".into(),
+            host: "irc.interlinked.me".into(),
+            port: 6697,
+            tls: true,
+            nickname: nick.clone(),
+            username: None,
+            realname: None,
+            password: None,
+            nick_password: None,
+            sasl_mechanism: None,
+            channels: vec![],
+            auto_connect: false,
+            alt_nicks: vec![],
+            quit_message: None,
+            part_message: None,
         },
     ]
 }
@@ -118,6 +386,7 @@ pub struct ServerConfig {
     pub port: u16,
     #[serde(default = "default_true")]
     pub tls: bool,
+    #[serde(default = "default_nickname")]
     pub nickname: String,
     #[serde(default)]
     pub username: Option<String>,
@@ -133,6 +402,12 @@ pub struct ServerConfig {
     pub channels: Vec<String>,
     #[serde(default)]
     pub auto_connect: bool,
+    #[serde(default)]
+    pub alt_nicks: Vec<String>,
+    #[serde(default)]
+    pub quit_message: Option<String>,
+    #[serde(default)]
+    pub part_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,6 +416,10 @@ pub struct UiConfig {
     pub timestamp_format: String,
     #[serde(default = "default_max_scrollback")]
     pub max_scrollback: usize,
+    #[serde(default = "default_true")]
+    pub parse_mirc_colors: bool,
+    #[serde(default = "default_true")]
+    pub highlight_urls: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,6 +434,90 @@ pub struct DccConfig {
     pub auto_accept: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BehaviorConfig {
+    #[serde(default)]
+    pub auto_rejoin_on_kick: bool,
+    #[serde(default = "default_rejoin_delay")]
+    pub rejoin_delay_secs: u64,
+    #[serde(default)]
+    pub bell_on_mention: bool,
+    #[serde(default)]
+    pub bell_on_pm: bool,
+    #[serde(default = "default_quit_message")]
+    pub quit_message: String,
+    #[serde(default = "default_part_message")]
+    pub part_message: String,
+}
+
+impl Default for BehaviorConfig {
+    fn default() -> Self {
+        Self {
+            auto_rejoin_on_kick: false,
+            rejoin_delay_secs: default_rejoin_delay(),
+            bell_on_mention: false,
+            bell_on_pm: false,
+            quit_message: default_quit_message(),
+            part_message: default_part_message(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_log_dir")]
+    pub log_dir: String,
+    #[serde(default = "default_true")]
+    pub log_channels: bool,
+    #[serde(default)]
+    pub log_queries: bool,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            log_dir: default_log_dir(),
+            log_channels: true,
+            log_queries: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CtcpConfig {
+    #[serde(default = "default_true")]
+    pub reply_version: bool,
+    #[serde(default = "default_true")]
+    pub reply_ping: bool,
+    #[serde(default = "default_true")]
+    pub reply_time: bool,
+    #[serde(default)]
+    pub reply_finger: bool,
+    #[serde(default = "default_version_string")]
+    pub version_string: String,
+    #[serde(default = "default_finger_string")]
+    pub finger_string: String,
+}
+
+impl Default for CtcpConfig {
+    fn default() -> Self {
+        Self {
+            reply_version: true,
+            reply_ping: true,
+            reply_time: true,
+            reply_finger: false,
+            version_string: default_version_string(),
+            finger_string: default_finger_string(),
+        }
+    }
+}
+
+fn default_nickname() -> String {
+    generate_nickname()
+}
 fn default_port() -> u16 {
     6697
 }
@@ -173,10 +536,30 @@ fn default_download_dir() -> PathBuf {
 fn default_max_file_size() -> u64 {
     500 * 1024 * 1024 // 500 MB
 }
+fn default_rejoin_delay() -> u64 {
+    3
+}
+fn default_quit_message() -> String {
+    "CrabChat".to_string()
+}
+fn default_part_message() -> String {
+    "Leaving".to_string()
+}
+fn default_log_dir() -> String {
+    "~/.local/share/crabchat/logs".to_string()
+}
+fn default_version_string() -> String {
+    "CrabChat - Rust IRC Client".to_string()
+}
+fn default_finger_string() -> String {
+    "CrabChat user".to_string()
+}
 fn default_ui() -> UiConfig {
     UiConfig {
         timestamp_format: default_timestamp_format(),
         max_scrollback: default_max_scrollback(),
+        parse_mirc_colors: true,
+        highlight_urls: true,
     }
 }
 fn default_dcc() -> DccConfig {
