@@ -72,4 +72,4 @@ max_scrollback = 10000
 download_dir = "./downloads"
 max_file_size = 524288000  # 500 MB
 reject_private_ips = false  # set to true to block DCC from LAN/private IPs
-auto_accept = false
+auto_accept = true

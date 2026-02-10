@@ -463,7 +463,7 @@ pub struct DccConfig {
     pub max_file_size: u64,
     #[serde(default)]
     pub reject_private_ips: bool,
-    #[serde(default)]
+    #[serde(default = "default_true")]
     pub auto_accept: bool,
 }
 
@@ -603,6 +603,6 @@ fn default_dcc() -> DccConfig {
         download_dir: default_download_dir(),
         max_file_size: default_max_file_size(),
         reject_private_ips: false,
-        auto_accept: false,
+        auto_accept: true,
     }
 }
