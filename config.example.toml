@@ -1,0 +1,75 @@
+# ircchat configuration
+# Copy this file to ~/.config/ircchat/config.toml
+#
+# Default servers are built-in (libera, undernet, efnet, dalnet, oftc, rizon).
+# To override or add your own, define [[servers]] entries below.
+# Set auto_connect = true on any server to connect on startup.
+
+[[servers]]
+name = "libera"
+host = "irc.libera.chat"
+port = 6697
+tls = true
+nickname = "myname"
+# username = "myuser"
+# realname = "My Name"
+# password = ""
+# nick_password = "nickserv_password"
+# sasl_mechanism = "PLAIN"
+channels = ["#ircchat"]
+auto_connect = false
+
+[[servers]]
+name = "undernet"
+host = "irc.undernet.org"
+port = 6667
+tls = false
+nickname = "myname"
+channels = []
+auto_connect = false
+
+[[servers]]
+name = "efnet"
+host = "irc.efnet.org"
+port = 6697
+tls = true
+nickname = "myname"
+channels = []
+auto_connect = false
+
+[[servers]]
+name = "dalnet"
+host = "irc.dal.net"
+port = 6697
+tls = true
+nickname = "myname"
+channels = []
+auto_connect = false
+
+[[servers]]
+name = "oftc"
+host = "irc.oftc.net"
+port = 6697
+tls = true
+nickname = "myname"
+channels = []
+auto_connect = false
+
+[[servers]]
+name = "rizon"
+host = "irc.rizon.net"
+port = 6697
+tls = true
+nickname = "myname"
+channels = []
+auto_connect = false
+
+[ui]
+timestamp_format = "%H:%M"
+max_scrollback = 10000
+
+[dcc]
+download_dir = "./downloads"
+max_file_size = 524288000  # 500 MB
+reject_private_ips = false  # set to true to block DCC from LAN/private IPs
+auto_accept = false

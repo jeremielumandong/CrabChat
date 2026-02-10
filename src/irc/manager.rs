@@ -1,0 +1,99 @@
+use crate::app::event::{AppEvent, ServerId};
+use crate::app::state::ServerState;
+use crate::irc::connection::{spawn_connection, IrcConnection};
+use anyhow::Result;
+use std::collections::HashMap;
+use tokio::sync::mpsc;
+
+pub struct IrcManager {
+    connections: HashMap<ServerId, IrcConnection>,
+    event_tx: mpsc::UnboundedSender<AppEvent>,
+}
+
+impl IrcManager {
+    pub fn new(event_tx: mpsc::UnboundedSender<AppEvent>) -> Self {
+        Self {
+            connections: HashMap::new(),
+            event_tx,
+        }
+    }
+
+    pub async fn connect(&mut self, server: &ServerState) -> Result<()> {
+        let conn = spawn_connection(
+            server.id,
+            server.host.clone(),
+            server.port,
+            server.tls,
+            server.nickname.clone(),
+            None,
+            None,
+            None,
+            None,
+            server.channels.clone(),
+            self.event_tx.clone(),
+        )
+        .await?;
+
+        self.connections.insert(server.id, conn);
+        Ok(())
+    }
+
+    pub fn disconnect(&mut self, server_id: ServerId) {
+        if let Some(conn) = self.connections.get(&server_id) {
+            let _ = conn.sender.send_quit("Leaving");
+        }
+        self.connections.remove(&server_id);
+    }
+
+    pub fn get_sender(&self, server_id: ServerId) -> Option<&irc::client::Sender> {
+        self.connections.get(&server_id).map(|c| &c.sender)
+    }
+
+    pub fn send_privmsg(&self, server_id: ServerId, target: &str, text: &str) -> Result<()> {
+        if let Some(sender) = self.get_sender(server_id) {
+            // Validate: no CTCP injection in outbound messages
+            let clean = text.replace('\x01', "");
+            sender.send_privmsg(target, &clean)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_action(&self, server_id: ServerId, target: &str, text: &str) -> Result<()> {
+        if let Some(sender) = self.get_sender(server_id) {
+            let clean = text.replace('\x01', "");
+            let ctcp = format!("\x01ACTION {}\x01", clean);
+            sender.send_privmsg(target, &ctcp)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_join(&self, server_id: ServerId, channel: &str) -> Result<()> {
+        if let Some(sender) = self.get_sender(server_id) {
+            sender.send_join(channel)?;
+        }
+        Ok(())
+    }
+
+    pub fn send_part(&self, server_id: ServerId, channel: &str, reason: Option<&str>) -> Result<()> {
+        if let Some(sender) = self.get_sender(server_id) {
+            sender.send(irc::client::prelude::Command::PART(
+                channel.to_string(),
+                reason.map(|r| r.to_string()),
+            ))?;
+        }
+        Ok(())
+    }
+
+    pub fn send_nick(&self, server_id: ServerId, nick: &str) -> Result<()> {
+        if let Some(sender) = self.get_sender(server_id) {
+            sender.send(irc::client::prelude::Command::NICK(nick.to_string()))?;
+        }
+        Ok(())
+    }
+
+    pub fn send_quit_all(&mut self) {
+        for (_id, conn) in self.connections.drain() {
+            let _ = conn.sender.send_quit("Leaving");
+        }
+    }
+}
