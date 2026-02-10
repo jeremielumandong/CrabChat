@@ -4,7 +4,7 @@ use crate::app::state::*;
 use crate::dcc::search_results;
 use crate::irc::commands;
 use chrono::Local;
-use crossterm::event::{Event as CEvent, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event as CEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::time::{Duration, Instant};
 
 pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
@@ -181,7 +181,7 @@ fn handle_tick(state: &mut AppState) -> Vec<Action> {
 
 fn handle_terminal(state: &mut AppState, event: CEvent) -> Vec<Action> {
     match event {
-        CEvent::Key(key) => handle_key(state, key),
+        CEvent::Key(key) if key.kind == KeyEventKind::Press => handle_key(state, key),
         CEvent::Resize(_, _) => {
             state.dirty = true;
             vec![]
