@@ -399,7 +399,7 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         Some(commands::ParsedCommand::ServerAdd { name, host, port, tls }) => {
             let nick = state.config.servers.first()
                 .map(|s| s.nickname.clone())
-                .unwrap_or_else(|| "ircchat_user".to_string());
+                .unwrap_or_else(|| "crabchat_user".to_string());
             vec![Action::ConnectServer { name, host, port, tls, nick }]
         }
         Some(commands::ParsedCommand::ServerConnect { name }) => {

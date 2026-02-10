@@ -151,7 +151,7 @@ async fn run_app(
         };
         state.add_server(server);
         let key = BufferKey::ServerStatus(server_id);
-        state.system_message(&key, "Welcome to ircchat!".to_string());
+        state.system_message(&key, "Welcome to CrabChat!".to_string());
         state.system_message(&key, String::new());
         state.system_message(&key, "Built-in servers:".to_string());
         for srv in &cfg.servers {

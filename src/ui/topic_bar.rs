@@ -27,7 +27,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 .unwrap_or("Unknown");
             format!(" Server: {}", name)
         }
-        None => " ircchat — /help for commands".to_string(),
+        None => " CrabChat — /help for commands".to_string(),
     };
 
     let paragraph = Paragraph::new(text).style(Theme::topic_bar());

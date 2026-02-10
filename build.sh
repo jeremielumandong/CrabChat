@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP="ircchat"
+APP="crabchat"
 VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
 TARGET_DIR="target"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"

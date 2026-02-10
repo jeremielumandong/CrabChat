@@ -156,6 +156,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "crabchat"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "crossterm",
+ "dirs",
+ "futures",
+ "irc",
+ "ratatui",
+ "rustls",
+ "serde",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "toml 0.8.23",
+ "tracing",
+ "tracing-subscriber",
+ "unicode-width 0.2.0",
+]
+
+[[package]]
 name = "crossterm"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -619,28 +641,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "ircchat"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "crossterm",
- "dirs",
- "futures",
- "irc",
- "ratatui",
- "rustls",
- "serde",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "toml 0.8.23",
- "tracing",
- "tracing-subscriber",
- "unicode-width 0.2.0",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
-# ircchat configuration
-# Copy this file to ~/.config/ircchat/config.toml
+# CrabChat configuration
+# Copy this file to ~/.config/crabchat/config.toml
 #
 # Default servers are built-in (libera, undernet, efnet, dalnet, oftc, rizon).
 # To override or add your own, define [[servers]] entries below.
@@ -16,7 +16,7 @@ nickname = "myname"
 # password = ""
 # nick_password = "nickserv_password"
 # sasl_mechanism = "PLAIN"
-channels = ["#ircchat"]
+channels = ["#crabchat"]
 auto_connect = false
 
 [[servers]]
