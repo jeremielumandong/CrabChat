@@ -63,9 +63,9 @@ pub fn handle_ctcp_dcc(state: &mut AppState, server_id: ServerId, from: &str, ct
         );
 
         if state.config.dcc.auto_accept {
-            state.pending_actions.push(
-                crate::app::action::Action::DccAccept { transfer_id },
-            );
+            state
+                .pending_actions
+                .push(crate::app::action::Action::DccAccept { transfer_id });
         }
     }
 }
