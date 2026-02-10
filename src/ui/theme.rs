@@ -164,10 +164,10 @@ impl Theme {
     }
 
     pub fn notice_message() -> Style {
-        Style::default()
-            .fg(Self::ACCENT_TEAL)
+        Style::default().fg(Self::ACCENT_TEAL)
     }
 
+    #[allow(dead_code)]
     pub fn url() -> Style {
         Style::default()
             .fg(Color::Rgb(100, 180, 255))
@@ -231,5 +231,4 @@ impl Theme {
     pub fn input_text() -> Style {
         Style::default().fg(Self::TEXT_PRIMARY)
     }
-
 }

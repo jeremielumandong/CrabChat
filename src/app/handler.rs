@@ -93,7 +93,13 @@ pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
                     .active_buffer
                     .clone()
                     .unwrap_or(BufferKey::ServerStatus(t.server_id));
-                state.system_message(&key, format!("DCC transfer complete: {} (saved to {})", filename, download_dir));
+                state.system_message(
+                    &key,
+                    format!(
+                        "DCC transfer complete: {} (saved to {})",
+                        filename, download_dir
+                    ),
+                );
             }
             vec![]
         }
@@ -105,13 +111,14 @@ pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
                     .active_buffer
                     .clone()
                     .unwrap_or(BufferKey::ServerStatus(t.server_id));
-                state.error_message(&key, format!("DCC transfer failed ({}): {}", filename, error));
+                state.error_message(
+                    &key,
+                    format!("DCC transfer failed ({}): {}", filename, error),
+                );
             }
             vec![]
         }
-        AppEvent::Tick => {
-            handle_tick(state)
-        }
+        AppEvent::Tick => handle_tick(state),
     };
 
     // Drain pending_actions from IRC message handlers
@@ -139,12 +146,26 @@ fn handle_tick(state: &mut AppState) -> Vec<Action> {
     }
 
     // Notify list: send ISON every 60s
-    if !state.notify_list.is_empty() && now.duration_since(state.last_ison_check) > Duration::from_secs(60) {
+    if !state.notify_list.is_empty()
+        && now.duration_since(state.last_ison_check) > Duration::from_secs(60)
+    {
         state.last_ison_check = now;
         // Find a connected server to send ISON
-        if let Some(srv) = state.servers.iter().find(|s| s.status == ConnectionStatus::Connected) {
-            let nicks: String = state.notify_list.iter().cloned().collect::<Vec<_>>().join(" ");
-            actions.push(Action::SendIson { server_id: srv.id, nicks });
+        if let Some(srv) = state
+            .servers
+            .iter()
+            .find(|s| s.status == ConnectionStatus::Connected)
+        {
+            let nicks: String = state
+                .notify_list
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" ");
+            actions.push(Action::SendIson {
+                server_id: srv.id,
+                nicks,
+            });
         }
     }
 
@@ -187,7 +208,11 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
     // F3 to open channel browser on active server
     if key.code == KeyCode::F(3) {
         if let Some(server_id) = state.active_server_id() {
-            if state.get_server(server_id).map(|s| s.status == ConnectionStatus::Connected).unwrap_or(false) {
+            if state
+                .get_server(server_id)
+                .map(|s| s.status == ConnectionStatus::Connected)
+                .unwrap_or(false)
+            {
                 let needs_fetch = state.channel_browser.open(server_id);
                 if needs_fetch {
                     return vec![Action::SendList { server_id }];
@@ -248,7 +273,11 @@ fn handle_server_browser_key(state: &mut AppState, key: KeyEvent) -> Vec<Action>
             if let Some(srv_cfg) = state.config.servers.get(selected) {
                 let host = srv_cfg.host.clone();
                 // Find connected server matching this host
-                if let Some(srv) = state.servers.iter().find(|s| s.host == host && s.status == ConnectionStatus::Connected) {
+                if let Some(srv) = state
+                    .servers
+                    .iter()
+                    .find(|s| s.host == host && s.status == ConnectionStatus::Connected)
+                {
                     let server_id = srv.id;
                     state.server_browser.visible = false;
                     let needs_fetch = state.channel_browser.open(server_id);
@@ -259,7 +288,10 @@ fn handle_server_browser_key(state: &mut AppState, key: KeyEvent) -> Vec<Action>
                 } else {
                     // Not connected — show system message
                     if let Some(ref key) = state.active_buffer.clone() {
-                        state.system_message(key, "Connect to this server first to list channels.".to_string());
+                        state.system_message(
+                            key,
+                            "Connect to this server first to list channels.".to_string(),
+                        );
                     }
                 }
             }
@@ -269,7 +301,10 @@ fn handle_server_browser_key(state: &mut AppState, key: KeyEvent) -> Vec<Action>
             let selected = state.server_browser.selected;
             if let Some(srv_cfg) = state.config.servers.get(selected).cloned() {
                 // Check if already connected
-                let already = state.servers.iter().any(|s| s.host == srv_cfg.host && s.status != ConnectionStatus::Disconnected);
+                let already = state
+                    .servers
+                    .iter()
+                    .any(|s| s.host == srv_cfg.host && s.status != ConnectionStatus::Disconnected);
                 if already {
                     // Switch to that server's buffer instead
                     if let Some(srv) = state.servers.iter().find(|s| s.host == srv_cfg.host) {
@@ -602,10 +637,9 @@ fn try_nick_completion(state: &mut AppState) {
     }
 
     // Get nick list for current channel
-    if let Some(BufferKey::Channel(server_id, ref channel)) = state.active_buffer {
-        let server_id = server_id;
+    if let Some(BufferKey::Channel(sid, ref channel)) = state.active_buffer {
         let channel = channel.clone();
-        if let Some(srv) = state.get_server(server_id) {
+        if let Some(srv) = state.get_server(sid) {
             if let Some(users) = srv.users.get(&channel) {
                 let partial_lower = partial.to_lowercase();
                 let matches: Vec<_> = users
@@ -638,10 +672,42 @@ fn try_command_completion(state: &mut AppState) {
     let text = state.input.text.clone();
 
     const COMMANDS: &[&str] = &[
-        "server", "servers", "join", "part", "nick", "msg", "query", "me", "quit", "exit", "help",
-        "dcc", "kick", "ban", "mode", "op", "deop", "voice", "devoice", "topic",
-        "notice", "whois", "who", "away", "raw", "quote", "list", "channels", "slap", "ignore",
-        "unignore", "ignorelist", "notify", "ctcp", "leave", "browse",
+        "server",
+        "servers",
+        "join",
+        "part",
+        "nick",
+        "msg",
+        "query",
+        "me",
+        "quit",
+        "exit",
+        "help",
+        "dcc",
+        "kick",
+        "ban",
+        "mode",
+        "op",
+        "deop",
+        "voice",
+        "devoice",
+        "topic",
+        "notice",
+        "whois",
+        "who",
+        "away",
+        "raw",
+        "quote",
+        "list",
+        "channels",
+        "slap",
+        "ignore",
+        "unignore",
+        "ignorelist",
+        "notify",
+        "ctcp",
+        "leave",
+        "browse",
     ];
     const SERVER_SUBCMDS: &[&str] = &["add", "connect", "list", "ls", "disconnect", "dc"];
     const DCC_SUBCMDS: &[&str] = &["list", "ls", "accept", "get", "cancel", "close"];
@@ -652,7 +718,10 @@ fn try_command_completion(state: &mut AppState) {
     // Case 1: completing the command name itself
     if parts.len() == 1 && !text.ends_with(' ') {
         let partial = &cmd;
-        let matches: Vec<&&str> = COMMANDS.iter().filter(|c| c.starts_with(partial.as_str())).collect();
+        let matches: Vec<&&str> = COMMANDS
+            .iter()
+            .filter(|c| c.starts_with(partial.as_str()))
+            .collect();
         if let Some(first) = matches.first() {
             state.input.text = format!("/{} ", first);
             state.input.cursor = state.input.text.len();
@@ -665,14 +734,20 @@ fn try_command_completion(state: &mut AppState) {
         "server" => {
             let sub = parts.get(1).unwrap_or(&"").to_string();
             if parts.len() == 2 && !text.ends_with(' ') {
-                let matches: Vec<&&str> = SERVER_SUBCMDS.iter().filter(|s| s.starts_with(sub.as_str())).collect();
+                let matches: Vec<&&str> = SERVER_SUBCMDS
+                    .iter()
+                    .filter(|s| s.starts_with(sub.as_str()))
+                    .collect();
                 if let Some(first) = matches.first() {
                     state.input.text = format!("/server {} ", first);
                     state.input.cursor = state.input.text.len();
                 }
             } else if sub == "connect" || sub == "disconnect" || sub == "dc" {
                 let partial = parts.get(2).unwrap_or(&"").to_lowercase();
-                let names: Vec<String> = state.config.servers.iter()
+                let names: Vec<String> = state
+                    .config
+                    .servers
+                    .iter()
                     .map(|s| s.name.clone())
                     .filter(|n| n.to_lowercase().starts_with(&partial))
                     .collect();
@@ -685,31 +760,36 @@ fn try_command_completion(state: &mut AppState) {
         "dcc" => {
             let sub = parts.get(1).unwrap_or(&"").to_string();
             if parts.len() == 2 && !text.ends_with(' ') {
-                let matches: Vec<&&str> = DCC_SUBCMDS.iter().filter(|s| s.starts_with(sub.as_str())).collect();
+                let matches: Vec<&&str> = DCC_SUBCMDS
+                    .iter()
+                    .filter(|s| s.starts_with(sub.as_str()))
+                    .collect();
                 if let Some(first) = matches.first() {
                     state.input.text = format!("/dcc {} ", first);
                     state.input.cursor = state.input.text.len();
                 }
             }
         }
-        "msg" | "query" | "whois" | "slap" | "ignore" | "unignore" | "notice" | "ctcp"
-        | "kick" | "op" | "deop" | "voice" | "devoice" | "ban" => {
+        "msg" | "query" | "whois" | "slap" | "ignore" | "unignore" | "notice" | "ctcp" | "kick"
+        | "op" | "deop" | "voice" | "devoice" | "ban" => {
             let partial = parts.get(1).unwrap_or(&"").to_string();
             if parts.len() == 2 && !text.ends_with(' ') {
                 let partial_lower = partial.to_lowercase();
-                let nick_match = if let Some(BufferKey::Channel(server_id, ref channel)) = state.active_buffer {
-                    let server_id = server_id;
-                    let channel = channel.clone();
-                    state.get_server(server_id)
-                        .and_then(|srv| srv.users.get(&channel))
-                        .and_then(|users| {
-                            users.iter()
-                                .find(|u| u.nick.to_lowercase().starts_with(&partial_lower))
-                                .map(|u| u.nick.clone())
-                        })
-                } else {
-                    None
-                };
+                let nick_match =
+                    if let Some(BufferKey::Channel(sid, ref channel)) = state.active_buffer {
+                        let channel = channel.clone();
+                        state
+                            .get_server(sid)
+                            .and_then(|srv| srv.users.get(&channel))
+                            .and_then(|users| {
+                                users
+                                    .iter()
+                                    .find(|u| u.nick.to_lowercase().starts_with(&partial_lower))
+                                    .map(|u| u.nick.clone())
+                            })
+                    } else {
+                        None
+                    };
                 if let Some(nick) = nick_match {
                     state.input.text = format!("/{} {} ", cmd, nick);
                     state.input.cursor = state.input.text.len();
@@ -745,25 +825,43 @@ fn try_command_completion(state: &mut AppState) {
 }
 
 fn resolve_channel(state: &AppState, explicit: Option<String>) -> Option<String> {
-    explicit.or_else(|| {
-        match &state.active_buffer {
-            Some(BufferKey::Channel(_, c)) => Some(c.clone()),
-            _ => None,
-        }
+    explicit.or_else(|| match &state.active_buffer {
+        Some(BufferKey::Channel(_, c)) => Some(c.clone()),
+        _ => None,
     })
 }
 
 fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
     let server_id = state.active_server_id();
     match commands::parse_command(text) {
-        Some(commands::ParsedCommand::ServerAdd { name, host, port, tls }) => {
-            let nick = state.config.servers.first()
+        Some(commands::ParsedCommand::ServerAdd {
+            name,
+            host,
+            port,
+            tls,
+        }) => {
+            let nick = state
+                .config
+                .servers
+                .first()
                 .map(|s| s.nickname.clone())
                 .unwrap_or_else(|| "crabchat_user".to_string());
-            vec![Action::ConnectServer { name, host, port, tls, nick, accept_invalid_certs: false }]
+            vec![Action::ConnectServer {
+                name,
+                host,
+                port,
+                tls,
+                nick,
+                accept_invalid_certs: false,
+            }]
         }
         Some(commands::ParsedCommand::ServerConnect { name }) => {
-            if let Some(srv_cfg) = state.config.servers.iter().find(|s| s.name.eq_ignore_ascii_case(&name)) {
+            if let Some(srv_cfg) = state
+                .config
+                .servers
+                .iter()
+                .find(|s| s.name.eq_ignore_ascii_case(&name))
+            {
                 vec![Action::ConnectServer {
                     name: srv_cfg.name.clone(),
                     host: srv_cfg.host.clone(),
@@ -774,8 +872,16 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 }]
             } else {
                 if let Some(ref key) = state.active_buffer.clone() {
-                    let names: Vec<_> = state.config.servers.iter().map(|s| s.name.as_str()).collect();
-                    state.error_message(key, format!("Unknown server '{}'. Available: {}", name, names.join(", ")));
+                    let names: Vec<_> = state
+                        .config
+                        .servers
+                        .iter()
+                        .map(|s| s.name.as_str())
+                        .collect();
+                    state.error_message(
+                        key,
+                        format!("Unknown server '{}'. Available: {}", name, names.join(", ")),
+                    );
                 }
                 vec![]
             }
@@ -793,14 +899,18 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 if state.servers.is_empty() {
                     state.system_message(key, "No servers configured.".to_string());
                 } else {
-                    let lines: Vec<String> = state.servers.iter().map(|srv| {
-                        let status = match srv.status {
-                            ConnectionStatus::Connected => "connected",
-                            ConnectionStatus::Connecting => "connecting",
-                            ConnectionStatus::Disconnected => "disconnected",
-                        };
-                        format!("  {} ({}:{}) [{}]", srv.name, srv.host, srv.port, status)
-                    }).collect();
+                    let lines: Vec<String> = state
+                        .servers
+                        .iter()
+                        .map(|srv| {
+                            let status = match srv.status {
+                                ConnectionStatus::Connected => "connected",
+                                ConnectionStatus::Connecting => "connecting",
+                                ConnectionStatus::Disconnected => "disconnected",
+                            };
+                            format!("  {} ({}:{}) [{}]", srv.name, srv.host, srv.port, status)
+                        })
+                        .collect();
                     for line in lines {
                         state.system_message(key, line);
                     }
@@ -810,7 +920,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Join { channel }) => {
             if let Some(sid) = server_id {
-                vec![Action::JoinChannel { server_id: sid, channel }]
+                vec![Action::JoinChannel {
+                    server_id: sid,
+                    channel,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -818,18 +931,21 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Part { channel, reason }) => {
             if let Some(sid) = server_id {
-                let ch = channel.unwrap_or_else(|| {
-                    match &state.active_buffer {
-                        Some(BufferKey::Channel(_, c)) => c.clone(),
-                        _ => String::new(),
-                    }
+                let ch = channel.unwrap_or_else(|| match &state.active_buffer {
+                    Some(BufferKey::Channel(_, c)) => c.clone(),
+                    _ => String::new(),
                 });
                 if ch.is_empty() {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
                 } else {
-                    let reason = reason.or_else(|| Some(state.config.behavior.part_message.clone()));
-                    vec![Action::PartChannel { server_id: sid, channel: ch, reason }]
+                    let reason =
+                        reason.or_else(|| Some(state.config.behavior.part_message.clone()));
+                    vec![Action::PartChannel {
+                        server_id: sid,
+                        channel: ch,
+                        reason,
+                    }]
                 }
             } else {
                 state.status_message = Some("No active server".to_string());
@@ -838,7 +954,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Nick { nick }) => {
             if let Some(sid) = server_id {
-                vec![Action::ChangeNick { server_id: sid, nick }]
+                vec![Action::ChangeNick {
+                    server_id: sid,
+                    nick,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -849,7 +968,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 // Open/switch to query buffer
                 let key = BufferKey::Query(sid, target.clone());
                 state.ensure_buffer(key.clone());
-                let nick = state.get_server(sid).map(|s| s.nickname.clone()).unwrap_or_default();
+                let nick = state
+                    .get_server(sid)
+                    .map(|s| s.nickname.clone())
+                    .unwrap_or_default();
                 let msg = Message {
                     timestamp: Local::now().format(&state.timestamp_format).to_string(),
                     sender: nick,
@@ -858,7 +980,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 };
                 state.add_message_to_buffer(&key, msg);
                 state.set_active_buffer(key);
-                vec![Action::SendPrivmsg { server_id: sid, target, text }]
+                vec![Action::SendPrivmsg {
+                    server_id: sid,
+                    target,
+                    text,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -875,7 +1001,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                             return vec![];
                         }
                     };
-                    let nick = state.get_server(sid).map(|s| s.nickname.clone()).unwrap_or_default();
+                    let nick = state
+                        .get_server(sid)
+                        .map(|s| s.nickname.clone())
+                        .unwrap_or_default();
                     let msg = Message {
                         timestamp: Local::now().format(&state.timestamp_format).to_string(),
                         sender: nick,
@@ -883,7 +1012,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                         kind: MessageKind::Action,
                     };
                     state.add_message_to_buffer(buf_key, msg);
-                    vec![Action::SendAction { server_id: sid, target, text }]
+                    vec![Action::SendAction {
+                        server_id: sid,
+                        target,
+                        text,
+                    }]
                 } else {
                     vec![]
                 }
@@ -897,17 +1030,21 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 if state.transfers.is_empty() {
                     state.system_message(key, "No DCC transfers.".to_string());
                 } else {
-                    let lines: Vec<String> = state.transfers.iter().map(|t| {
-                        let pct = if t.size > 0 {
-                            (t.received as f64 / t.size as f64 * 100.0) as u32
-                        } else {
-                            0
-                        };
-                        format!(
-                            "  [{}] {} from {} — {} bytes ({}%) {:?}",
-                            t.id, t.filename, t.from, t.size, pct, t.status
-                        )
-                    }).collect();
+                    let lines: Vec<String> = state
+                        .transfers
+                        .iter()
+                        .map(|t| {
+                            let pct = if t.size > 0 {
+                                (t.received as f64 / t.size as f64 * 100.0) as u32
+                            } else {
+                                0
+                            };
+                            format!(
+                                "  [{}] {} from {} — {} bytes ({}%) {:?}",
+                                t.id, t.filename, t.from, t.size, pct, t.status
+                            )
+                        })
+                        .collect();
                     for line in lines {
                         state.system_message(key, line);
                     }
@@ -926,10 +1063,19 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 message: message.or_else(|| Some(state.config.behavior.quit_message.clone())),
             }]
         }
-        Some(commands::ParsedCommand::Kick { channel, user, reason }) => {
+        Some(commands::ParsedCommand::Kick {
+            channel,
+            user,
+            reason,
+        }) => {
             if let Some(sid) = server_id {
                 if let Some(ch) = resolve_channel(state, channel) {
-                    vec![Action::SendKick { server_id: sid, channel: ch, user, reason }]
+                    vec![Action::SendKick {
+                        server_id: sid,
+                        channel: ch,
+                        user,
+                        reason,
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -942,7 +1088,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         Some(commands::ParsedCommand::Ban { channel, mask }) => {
             if let Some(sid) = server_id {
                 if let Some(ch) = resolve_channel(state, channel) {
-                    vec![Action::SendMode { server_id: sid, target: ch, modes: format!("+b {}", mask) }]
+                    vec![Action::SendMode {
+                        server_id: sid,
+                        target: ch,
+                        modes: format!("+b {}", mask),
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -954,7 +1104,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Mode { target, modes }) => {
             if let Some(sid) = server_id {
-                vec![Action::SendMode { server_id: sid, target, modes }]
+                vec![Action::SendMode {
+                    server_id: sid,
+                    target,
+                    modes,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -963,7 +1117,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         Some(commands::ParsedCommand::Op { channel, nick }) => {
             if let Some(sid) = server_id {
                 if let Some(ch) = resolve_channel(state, channel) {
-                    vec![Action::SendMode { server_id: sid, target: ch, modes: format!("+o {}", nick) }]
+                    vec![Action::SendMode {
+                        server_id: sid,
+                        target: ch,
+                        modes: format!("+o {}", nick),
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -976,7 +1134,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         Some(commands::ParsedCommand::Deop { channel, nick }) => {
             if let Some(sid) = server_id {
                 if let Some(ch) = resolve_channel(state, channel) {
-                    vec![Action::SendMode { server_id: sid, target: ch, modes: format!("-o {}", nick) }]
+                    vec![Action::SendMode {
+                        server_id: sid,
+                        target: ch,
+                        modes: format!("-o {}", nick),
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -989,7 +1151,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         Some(commands::ParsedCommand::Voice { channel, nick }) => {
             if let Some(sid) = server_id {
                 if let Some(ch) = resolve_channel(state, channel) {
-                    vec![Action::SendMode { server_id: sid, target: ch, modes: format!("+v {}", nick) }]
+                    vec![Action::SendMode {
+                        server_id: sid,
+                        target: ch,
+                        modes: format!("+v {}", nick),
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -1002,7 +1168,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         Some(commands::ParsedCommand::Devoice { channel, nick }) => {
             if let Some(sid) = server_id {
                 if let Some(ch) = resolve_channel(state, channel) {
-                    vec![Action::SendMode { server_id: sid, target: ch, modes: format!("-v {}", nick) }]
+                    vec![Action::SendMode {
+                        server_id: sid,
+                        target: ch,
+                        modes: format!("-v {}", nick),
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -1016,7 +1186,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
             if let Some(sid) = server_id {
                 if let Some(BufferKey::Channel(_, ref ch)) = state.active_buffer {
                     let ch = ch.clone();
-                    vec![Action::SetTopic { server_id: sid, channel: ch, text }]
+                    vec![Action::SetTopic {
+                        server_id: sid,
+                        channel: ch,
+                        text,
+                    }]
                 } else {
                     state.status_message = Some("Not in a channel".to_string());
                     vec![]
@@ -1030,7 +1204,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
             if let Some(sid) = server_id {
                 // Display our own notice locally
                 if let Some(ref key) = state.active_buffer.clone() {
-                    let nick = state.get_server(sid).map(|s| s.nickname.clone()).unwrap_or_default();
+                    let nick = state
+                        .get_server(sid)
+                        .map(|s| s.nickname.clone())
+                        .unwrap_or_default();
                     let msg = Message {
                         timestamp: Local::now().format(&state.timestamp_format).to_string(),
                         sender: nick,
@@ -1039,7 +1216,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                     };
                     state.add_message_to_buffer(key, msg);
                 }
-                vec![Action::SendNotice { server_id: sid, target, text }]
+                vec![Action::SendNotice {
+                    server_id: sid,
+                    target,
+                    text,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -1047,7 +1228,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Whois { nick }) => {
             if let Some(sid) = server_id {
-                vec![Action::SendWhois { server_id: sid, nick }]
+                vec![Action::SendWhois {
+                    server_id: sid,
+                    nick,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -1055,7 +1239,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Who { target }) => {
             if let Some(sid) = server_id {
-                vec![Action::SendWho { server_id: sid, target }]
+                vec![Action::SendWho {
+                    server_id: sid,
+                    target,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -1065,12 +1252,21 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
             if let Some(sid) = server_id {
                 if let Some(ref key) = state.active_buffer.clone() {
                     if message.is_some() {
-                        state.system_message(key, format!("You are now marked as away: {}", message.as_deref().unwrap()));
+                        state.system_message(
+                            key,
+                            format!(
+                                "You are now marked as away: {}",
+                                message.as_deref().unwrap()
+                            ),
+                        );
                     } else {
                         state.system_message(key, "You are no longer marked as away.".to_string());
                     }
                 }
-                vec![Action::SetAway { server_id: sid, message }]
+                vec![Action::SetAway {
+                    server_id: sid,
+                    message,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -1078,7 +1274,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::Raw { command }) => {
             if let Some(sid) = server_id {
-                vec![Action::SendRaw { server_id: sid, command }]
+                vec![Action::SendRaw {
+                    server_id: sid,
+                    command,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -1107,7 +1306,10 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                         }
                     };
                     let slap_text = format!("slaps {} around a bit with a large trout", nick);
-                    let our_nick = state.get_server(sid).map(|s| s.nickname.clone()).unwrap_or_default();
+                    let our_nick = state
+                        .get_server(sid)
+                        .map(|s| s.nickname.clone())
+                        .unwrap_or_default();
                     let msg = Message {
                         timestamp: Local::now().format(&state.timestamp_format).to_string(),
                         sender: our_nick,
@@ -1115,7 +1317,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                         kind: MessageKind::Action,
                     };
                     state.add_message_to_buffer(buf_key, msg);
-                    vec![Action::SendAction { server_id: sid, target, text: slap_text }]
+                    vec![Action::SendAction {
+                        server_id: sid,
+                        target,
+                        text: slap_text,
+                    }]
                 } else {
                     vec![]
                 }
@@ -1181,7 +1387,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 if let Some(ref key) = state.active_buffer.clone() {
                     state.system_message(key, format!("CTCP {} sent to {}", command, target));
                 }
-                vec![Action::SendCtcp { server_id: sid, target, command }]
+                vec![Action::SendCtcp {
+                    server_id: sid,
+                    target,
+                    command,
+                }]
             } else {
                 state.status_message = Some("No active server".to_string());
                 vec![]
@@ -1193,7 +1403,11 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         Some(commands::ParsedCommand::ChannelBrowser) => {
             if let Some(sid) = server_id {
-                if state.get_server(sid).map(|s| s.status == ConnectionStatus::Connected).unwrap_or(false) {
+                if state
+                    .get_server(sid)
+                    .map(|s| s.status == ConnectionStatus::Connected)
+                    .unwrap_or(false)
+                {
                     let needs_fetch = state.channel_browser.open(sid);
                     if needs_fetch {
                         vec![Action::SendList { server_id: sid }]
@@ -1282,7 +1496,13 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
         }
         None => {
             if let Some(ref key) = state.active_buffer.clone() {
-                state.error_message(key, format!("Unknown command: {}", text.split_whitespace().next().unwrap_or(text)));
+                state.error_message(
+                    key,
+                    format!(
+                        "Unknown command: {}",
+                        text.split_whitespace().next().unwrap_or(text)
+                    ),
+                );
             }
             vec![]
         }
@@ -1315,8 +1535,7 @@ pub fn handle_irc_message(
             // Check for CTCP
             if text.starts_with('\x01') && text.ends_with('\x01') {
                 let ctcp = &text[1..text.len() - 1];
-                if ctcp.starts_with("ACTION ") {
-                    let action_text = &ctcp[7..];
+                if let Some(action_text) = ctcp.strip_prefix("ACTION ") {
                     let key = if target.starts_with('#') || target.starts_with('&') {
                         BufferKey::Channel(server_id, target.clone())
                     } else {
@@ -1332,7 +1551,10 @@ pub fn handle_irc_message(
 
                     // Check for mention
                     if let Some(srv) = state.get_server(server_id) {
-                        if action_text.to_lowercase().contains(&srv.nickname.to_lowercase()) {
+                        if action_text
+                            .to_lowercase()
+                            .contains(&srv.nickname.to_lowercase())
+                        {
                             if let Some(buf) = state.buffers.get_mut(&key) {
                                 buf.has_mention = true;
                             }
@@ -1418,7 +1640,10 @@ pub fn handle_irc_message(
             // Notify list check
             if state.notify_list.contains(&nick_from.to_lowercase()) {
                 let status_key = BufferKey::ServerStatus(server_id);
-                state.system_message(&status_key, format!("Notify: {} is now online (joined {})", nick_from, channel));
+                state.system_message(
+                    &status_key,
+                    format!("Notify: {} is now online (joined {})", nick_from, channel),
+                );
                 state.known_online.insert(nick_from.to_lowercase());
             }
         }
@@ -1434,10 +1659,8 @@ pub fn handle_irc_message(
                         let fallback = BufferKey::ServerStatus(server_id);
                         state.set_active_buffer(fallback);
                     }
-                } else {
-                    if let Some(users) = srv.users.get_mut(channel) {
-                        users.retain(|u| !u.nick.eq_ignore_ascii_case(&nick_from));
-                    }
+                } else if let Some(users) = srv.users.get_mut(channel) {
+                    users.retain(|u| !u.nick.eq_ignore_ascii_case(&nick_from));
                 }
             }
 
@@ -1457,7 +1680,10 @@ pub fn handle_irc_message(
             // Notify list check
             if state.notify_list.contains(&nick_from.to_lowercase()) {
                 let status_key = BufferKey::ServerStatus(server_id);
-                state.system_message(&status_key, format!("Notify: {} is now offline (quit)", nick_from));
+                state.system_message(
+                    &status_key,
+                    format!("Notify: {} is now offline (quit)", nick_from),
+                );
                 state.known_online.remove(&nick_from.to_lowercase());
             }
 
@@ -1495,10 +1721,7 @@ pub fn handle_irc_message(
             }
             // Post nick change in active buffer
             if let Some(ref key) = state.active_buffer.clone() {
-                state.system_message(
-                    key,
-                    format!("{} is now known as {}", nick_from, new_nick),
-                );
+                state.system_message(key, format!("{} is now known as {}", nick_from, new_nick));
             }
         }
 
@@ -1531,10 +1754,7 @@ pub fn handle_irc_message(
                     srv.topics.insert(channel.clone(), topic.clone());
                 }
                 let key = BufferKey::Channel(server_id, channel.clone());
-                state.system_message(
-                    &key,
-                    format!("{} set topic: {}", nick_from, topic),
-                );
+                state.system_message(&key, format!("{} set topic: {}", nick_from, topic));
             }
         }
 
@@ -1568,24 +1788,29 @@ pub fn handle_irc_message(
                             rejoin_at: Instant::now() + delay,
                         });
                     }
-                } else {
-                    if let Some(users) = srv.users.get_mut(channel) {
-                        users.retain(|u| !u.nick.eq_ignore_ascii_case(user));
-                    }
+                } else if let Some(users) = srv.users.get_mut(channel) {
+                    users.retain(|u| !u.nick.eq_ignore_ascii_case(user));
                 }
             }
         }
 
         Command::ChannelMODE(ref target, ref modes) => {
             // Format mode changes for display
-            let mode_text: String = modes.iter().map(|m| format!("{}", m)).collect::<Vec<_>>().join(" ");
+            let mode_text: String = modes
+                .iter()
+                .map(|m| format!("{}", m))
+                .collect::<Vec<_>>()
+                .join(" ");
 
             let key = if target.starts_with('#') || target.starts_with('&') {
                 BufferKey::Channel(server_id, target.clone())
             } else {
                 BufferKey::ServerStatus(server_id)
             };
-            state.system_message(&key, format!("{} sets mode {} on {}", nick_from, mode_text, target));
+            state.system_message(
+                &key,
+                format!("{} sets mode {} on {}", nick_from, mode_text, target),
+            );
 
             // Update user prefixes from typed modes
             if target.starts_with('#') || target.starts_with('&') {
@@ -1594,9 +1819,16 @@ pub fn handle_irc_message(
         }
 
         Command::UserMODE(ref target, ref modes) => {
-            let mode_text: String = modes.iter().map(|m| format!("{}", m)).collect::<Vec<_>>().join(" ");
+            let mode_text: String = modes
+                .iter()
+                .map(|m| format!("{}", m))
+                .collect::<Vec<_>>()
+                .join(" ");
             let key = BufferKey::ServerStatus(server_id);
-            state.system_message(&key, format!("{} sets mode {} on {}", nick_from, mode_text, target));
+            state.system_message(
+                &key,
+                format!("{} sets mode {} on {}", nick_from, mode_text, target),
+            );
         }
 
         _ => {
@@ -1703,7 +1935,12 @@ fn update_channel_modes(
     }
 }
 
-fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::prelude::Response, args: &[String]) {
+fn handle_numeric(
+    state: &mut AppState,
+    server_id: ServerId,
+    resp: irc::client::prelude::Response,
+    args: &[String],
+) {
     use irc::client::prelude::Response;
     let key = BufferKey::ServerStatus(server_id);
 
@@ -1714,9 +1951,13 @@ fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::
                 state.system_message(&key, text.clone());
             }
             // Auto-identify with NickServ
-            let nick_password = state.config.servers.iter()
+            let nick_password = state
+                .config
+                .servers
+                .iter()
                 .find(|s| {
-                    state.get_server(server_id)
+                    state
+                        .get_server(server_id)
                         .map(|srv| s.name.eq_ignore_ascii_case(&srv.name))
                         .unwrap_or(false)
                 })
@@ -1771,10 +2012,10 @@ fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::
         // RPL_WHOISUSER (311)
         Response::RPL_WHOISUSER => {
             if args.len() >= 6 {
-                state.system_message(&key, format!(
-                    "WHOIS {} ({}@{}) — {}",
-                    args[1], args[2], args[3], args[5]
-                ));
+                state.system_message(
+                    &key,
+                    format!("WHOIS {} ({}@{}) — {}", args[1], args[2], args[3], args[5]),
+                );
             }
         }
         // RPL_WHOISCHANNELS (319)
@@ -1797,10 +2038,13 @@ fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::
         // RPL_WHOREPLY (352)
         Response::RPL_WHOREPLY => {
             if args.len() >= 8 {
-                state.system_message(&key, format!(
-                    "  {} {} {}@{} ({}) — {}",
-                    args[5], args[1], args[2], args[3], args[6], args[7]
-                ));
+                state.system_message(
+                    &key,
+                    format!(
+                        "  {} {} {}@{} ({}) — {}",
+                        args[5], args[1], args[2], args[3], args[6], args[7]
+                    ),
+                );
             } else if let Some(text) = args.last() {
                 state.system_message(&key, text.clone());
             }
@@ -1834,7 +2078,9 @@ fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::
         // RPL_LISTSTART (321)
         Response::RPL_LISTSTART => {
             // Only show in buffer if channel browser is NOT handling it
-            if !(state.channel_browser.loading && state.channel_browser.server_id == Some(server_id)) {
+            if !(state.channel_browser.loading
+                && state.channel_browser.server_id == Some(server_id))
+            {
                 state.system_message(&key, "Channel list:".to_string());
             }
         }
@@ -1843,18 +2089,29 @@ fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::
             if args.len() >= 4 {
                 let ch_name = args[1].clone();
                 let user_count: usize = args[2].parse().unwrap_or(0);
-                let topic = if args.len() > 3 { args[3].clone() } else { String::new() };
+                let topic = if args.len() > 3 {
+                    args[3].clone()
+                } else {
+                    String::new()
+                };
 
                 // Feed channel browser if it's loading for this server
-                if state.channel_browser.loading && state.channel_browser.server_id == Some(server_id) {
-                    state.channel_browser.add_channel(ch_name, user_count, topic);
+                if state.channel_browser.loading
+                    && state.channel_browser.server_id == Some(server_id)
+                {
+                    state
+                        .channel_browser
+                        .add_channel(ch_name, user_count, topic);
                     // Don't mark dirty on every single entry — only periodically
-                    if state.channel_browser.channels.len() % 200 == 0 {
+                    if state.channel_browser.channels.len().is_multiple_of(200) {
                         state.dirty = true;
                     }
                 } else {
                     // Only dump into buffer when not using the browser
-                    state.system_message(&key, format!("  {} ({} users) — {}", ch_name, user_count, topic));
+                    state.system_message(
+                        &key,
+                        format!("  {} ({} users) — {}", ch_name, user_count, topic),
+                    );
                 }
             }
         }
@@ -1888,24 +2145,35 @@ fn handle_numeric(state: &mut AppState, server_id: ServerId, resp: irc::client::
 
         // ERR_NICKNAMEINUSE (433)
         Response::ERR_NICKNAMEINUSE => {
-            state.system_message(&key, "Nickname already in use, trying alternative...".to_string());
+            state.system_message(
+                &key,
+                "Nickname already in use, trying alternative...".to_string(),
+            );
             // Try alt nicks
             let alt_nick = {
                 let srv_cfg = state.config.servers.iter().find(|s| {
-                    state.get_server(server_id)
+                    state
+                        .get_server(server_id)
                         .map(|srv| s.name.eq_ignore_ascii_case(&srv.name))
                         .unwrap_or(false)
                 });
-                let alt_idx = state.get_server(server_id).map(|s| s.alt_nick_index).unwrap_or(0);
+                let alt_idx = state
+                    .get_server(server_id)
+                    .map(|s| s.alt_nick_index)
+                    .unwrap_or(0);
                 if let Some(cfg) = srv_cfg {
                     if alt_idx < cfg.alt_nicks.len() {
                         Some(cfg.alt_nicks[alt_idx].clone())
                     } else {
                         // Fallback: append _ to current nick
-                        state.get_server(server_id).map(|s| format!("{}_", s.nickname))
+                        state
+                            .get_server(server_id)
+                            .map(|s| format!("{}_", s.nickname))
                     }
                 } else {
-                    state.get_server(server_id).map(|s| format!("{}_", s.nickname))
+                    state
+                        .get_server(server_id)
+                        .map(|s| format!("{}_", s.nickname))
                 }
             };
             if let Some(new_nick) = alt_nick {

@@ -1,7 +1,9 @@
 use crate::app::state::AppState;
 use crate::ui::theme::Theme;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{
+    Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+};
 
 /// Network descriptions for known servers (keyed by name).
 fn network_description(name: &str) -> &'static str {
@@ -38,8 +40,12 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
 
     // Center the popup: 70% width, 80% height, min 60x20
-    let popup_w = (area.width * 70 / 100).max(60).min(area.width.saturating_sub(4));
-    let popup_h = (area.height * 80 / 100).max(20).min(area.height.saturating_sub(2));
+    let popup_w = (area.width * 70 / 100)
+        .max(60)
+        .min(area.width.saturating_sub(4));
+    let popup_h = (area.height * 80 / 100)
+        .max(20)
+        .min(area.height.saturating_sub(2));
     let popup_x = (area.width.saturating_sub(popup_w)) / 2;
     let popup_y = (area.height.saturating_sub(popup_h)) / 2;
     let popup_area = Rect::new(popup_x, popup_y, popup_w, popup_h);
@@ -67,9 +73,13 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let header = Line::from(vec![
         Span::styled("  ", Style::default()),
         Span::styled(
-            format!("{:<16} {:<30} {:<6} {}",
-                "Network", "Host", "Port", "Description"),
-            Style::default().fg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD),
+            format!(
+                "{:<16} {:<30} {:<6} {}",
+                "Network", "Host", "Port", "Description"
+            ),
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
         ),
     ]);
     frame.render_widget(Paragraph::new(header), header_area);
@@ -84,7 +94,12 @@ pub fn render(frame: &mut Frame, state: &AppState) {
 
     // List area
     let list_h = (inner.height as usize).saturating_sub(4); // header + sep + footer + help
-    let list_area = Rect::new(inner.x, inner.y + 2, inner.width.saturating_sub(1), list_h as u16);
+    let list_area = Rect::new(
+        inner.x,
+        inner.y + 2,
+        inner.width.saturating_sub(1),
+        list_h as u16,
+    );
 
     let servers = &state.config.servers;
     let browser = &state.server_browser;
@@ -94,10 +109,11 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let start = browser.scroll_offset;
     let end = (start + list_h).min(servers.len());
 
-    for i in start..end {
-        let srv = &servers[i];
+    for (i, srv) in servers.iter().enumerate().take(end).skip(start) {
         let is_selected = i == browser.selected;
-        let is_connected = state.servers.iter().any(|s| s.host == srv.host && s.status == crate::app::state::ConnectionStatus::Connected);
+        let is_connected = state.servers.iter().any(|s| {
+            s.host == srv.host && s.status == crate::app::state::ConnectionStatus::Connected
+        });
         let desc = network_description(&srv.name);
 
         let tls_icon = if srv.tls { "🔒" } else { "  " };
@@ -109,7 +125,10 @@ pub fn render(frame: &mut Frame, state: &AppState) {
         );
 
         let style = if is_selected {
-            Style::default().fg(Theme::BG_DARK).bg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Theme::BG_DARK)
+                .bg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD)
         } else if is_connected {
             Style::default().fg(Theme::ACCENT_GREEN)
         } else {
@@ -149,27 +168,41 @@ pub fn render(frame: &mut Frame, state: &AppState) {
             format!(" {} networks available", count),
             Style::default().fg(Theme::TEXT_SECONDARY),
         ),
-        Span::styled(
-            "  ● = connected",
-            Style::default().fg(Theme::ACCENT_GREEN),
-        ),
-        Span::styled(
-            "  🔒 = TLS",
-            Style::default().fg(Theme::TEXT_SECONDARY),
-        ),
+        Span::styled("  ● = connected", Style::default().fg(Theme::ACCENT_GREEN)),
+        Span::styled("  🔒 = TLS", Style::default().fg(Theme::TEXT_SECONDARY)),
     ]);
     frame.render_widget(Paragraph::new(footer), footer_area);
 
     // Keybinding help
     let help_area = Rect::new(inner.x, inner.y + inner.height - 1, inner.width, 1);
     let help = Line::from(vec![
-        Span::styled(" ↑↓", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " ↑↓",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Navigate  ", Style::default().fg(Theme::TEXT_SECONDARY)),
-        Span::styled("Enter", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Enter",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Connect  ", Style::default().fg(Theme::TEXT_SECONDARY)),
-        Span::styled("Esc", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Esc",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Close  ", Style::default().fg(Theme::TEXT_SECONDARY)),
-        Span::styled("L", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "L",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" List channels", Style::default().fg(Theme::TEXT_SECONDARY)),
     ]);
     frame.render_widget(Paragraph::new(help), help_area);

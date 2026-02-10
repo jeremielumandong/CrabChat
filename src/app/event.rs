@@ -28,23 +28,16 @@ pub enum AppEvent {
     },
 
     /// The IRC client successfully connected and identified with the server.
-    IrcConnected {
-        server_id: ServerId,
-    },
+    IrcConnected { server_id: ServerId },
 
     /// The connection to an IRC server was lost or closed.
-    IrcDisconnected {
-        server_id: ServerId,
-        reason: String,
-    },
+    IrcDisconnected { server_id: ServerId, reason: String },
 
     /// A non-fatal error occurred on an IRC connection.
-    IrcError {
-        server_id: ServerId,
-        error: String,
-    },
+    IrcError { server_id: ServerId, error: String },
 
     /// A DCC SEND offer was received from another user.
+    #[allow(dead_code)]
     DccOfferReceived {
         server_id: ServerId,
         from: String,
@@ -63,9 +56,7 @@ pub enum AppEvent {
     },
 
     /// A DCC file transfer completed successfully.
-    DccComplete {
-        transfer_id: TransferId,
-    },
+    DccComplete { transfer_id: TransferId },
 
     /// A DCC file transfer failed.
     DccFailed {

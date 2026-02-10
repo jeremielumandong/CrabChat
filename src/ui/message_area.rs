@@ -2,7 +2,9 @@ use crate::app::state::*;
 use crate::ui::mirc_colors;
 use crate::ui::theme::Theme;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap};
+use ratatui::widgets::{
+    Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap,
+};
 
 const LOGO: [&str; 5] = [
     r"  ____           _      ____ _           _   ",
@@ -68,24 +70,55 @@ fn render_welcome(frame: &mut Frame, area: Rect, state: &AppState) {
     }
 
     help_lines.push(Line::from(vec![
-        Span::styled("  F2 ", Style::default().fg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "  F2 ",
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("Server browser", Style::default().fg(Theme::TEXT_SECONDARY)),
     ]));
     help_lines.push(Line::from(vec![
-        Span::styled("  F3 ", Style::default().fg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD)),
-        Span::styled("Channel list (when connected)", Style::default().fg(Theme::TEXT_SECONDARY)),
+        Span::styled(
+            "  F3 ",
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            "Channel list (when connected)",
+            Style::default().fg(Theme::TEXT_SECONDARY),
+        ),
     ]));
     help_lines.push(Line::from(vec![
-        Span::styled("  /server connect <name> ", Style::default().fg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "  /server connect <name> ",
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("Quick connect", Style::default().fg(Theme::TEXT_SECONDARY)),
     ]));
     help_lines.push(Line::from(vec![
-        Span::styled("  /server add <name> <host:port> ", Style::default().fg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "  /server add <name> <host:port> ",
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("Add server", Style::default().fg(Theme::TEXT_SECONDARY)),
     ]));
     help_lines.push(Line::from(vec![
-        Span::styled("  /help ", Style::default().fg(Theme::ACCENT_TEAL).add_modifier(Modifier::BOLD)),
-        Span::styled("Show all commands", Style::default().fg(Theme::TEXT_SECONDARY)),
+        Span::styled(
+            "  /help ",
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            "Show all commands",
+            Style::default().fg(Theme::TEXT_SECONDARY),
+        ),
     ]));
 
     // subtitle + gap + help
@@ -143,11 +176,7 @@ fn render_welcome(frame: &mut Frame, area: Rect, state: &AppState) {
     // Help block (centered as a unit, left-aligned within)
     let help_y = sub_y + 2;
     if help_y < area.y + area.height {
-        let max_w = help_lines
-            .iter()
-            .map(|l| l.width())
-            .max()
-            .unwrap_or(0) as u16;
+        let max_w = help_lines.iter().map(|l| l.width()).max().unwrap_or(0) as u16;
         let max_w = max_w.max(logo_w); // at least as wide as the logo
         let help_x = area.x + area.width.saturating_sub(max_w) / 2;
         let remaining_h = (area.y + area.height).saturating_sub(help_y);
@@ -159,7 +188,11 @@ fn render_welcome(frame: &mut Frame, area: Rect, state: &AppState) {
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let focused = state.focus == FocusPanel::MessageArea;
     let (border_style, border_type, bg) = if focused {
-        (Theme::border_focused(), Theme::border_type_focused(), Theme::panel_bg_focused())
+        (
+            Theme::border_focused(),
+            Theme::border_type_focused(),
+            Theme::panel_bg_focused(),
+        )
     } else {
         (Theme::border(), Theme::border_type(), Theme::panel_bg())
     };
@@ -174,8 +207,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(block, area);
 
     let Some(ref buf_key) = state.active_buffer else {
-        let empty = Paragraph::new("No active buffer. Use /server add <name> <host:port> to connect.")
-            .style(Style::default().fg(Theme::TEXT_MUTED));
+        let empty =
+            Paragraph::new("No active buffer. Use /server add <name> <host:port> to connect.")
+                .style(Style::default().fg(Theme::TEXT_MUTED));
         frame.render_widget(empty, inner);
         return;
     };
@@ -199,9 +233,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let visible = &buf.messages[start..end];
 
-    let our_nick = state.active_server_id().and_then(|id| {
-        state.get_server(id).map(|s| s.nickname.clone())
-    });
+    let our_nick = state
+        .active_server_id()
+        .and_then(|id| state.get_server(id).map(|s| s.nickname.clone()));
 
     let parse_colors = state.config.ui.parse_mirc_colors;
     let do_urls = state.config.ui.highlight_urls;
@@ -217,8 +251,8 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     // Scrollbar
     if total > available_height {
         let scroll_pos = start;
-        let mut scrollbar_state = ScrollbarState::new(total.saturating_sub(available_height))
-            .position(scroll_pos);
+        let mut scrollbar_state =
+            ScrollbarState::new(total.saturating_sub(available_height)).position(scroll_pos);
 
         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .thumb_symbol("┃")
@@ -230,11 +264,13 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     }
 }
 
-fn format_message<'a>(msg: &Message, our_nick: Option<&str>, parse_colors: bool, highlight_urls: bool) -> Line<'a> {
-    let ts = Span::styled(
-        format!("[{}] ", msg.timestamp),
-        Theme::timestamp(),
-    );
+fn format_message<'a>(
+    msg: &Message,
+    our_nick: Option<&str>,
+    parse_colors: bool,
+    highlight_urls: bool,
+) -> Line<'a> {
+    let ts = Span::styled(format!("[{}] ", msg.timestamp), Theme::timestamp());
 
     match msg.kind {
         MessageKind::Normal => {
@@ -247,10 +283,7 @@ fn format_message<'a>(msg: &Message, our_nick: Option<&str>, parse_colors: bool,
                 Theme::nick_color(&msg.sender)
             };
 
-            let mut spans = vec![
-                ts,
-                Span::styled(format!("<{}> ", msg.sender), nick_style),
-            ];
+            let mut spans = vec![ts, Span::styled(format!("<{}> ", msg.sender), nick_style)];
 
             let text_spans = if parse_colors {
                 mirc_colors::parse_mirc_formatted(&msg.text, Theme::message_text())
@@ -267,56 +300,41 @@ fn format_message<'a>(msg: &Message, our_nick: Option<&str>, parse_colors: bool,
             spans.extend(text_spans);
             Line::from(spans)
         }
-        MessageKind::Action => {
-            Line::from(vec![
-                ts,
-                Span::styled(
-                    format!("* {} {}", msg.sender, msg.text),
-                    Theme::action_message(),
-                ),
-            ])
-        }
-        MessageKind::System => {
-            Line::from(vec![
-                ts,
-                Span::styled("• ", Style::default().fg(Theme::ACCENT_AMBER)),
-                Span::styled(msg.text.clone(), Theme::system_message()),
-            ])
-        }
-        MessageKind::Error => {
-            Line::from(vec![
-                ts,
-                Span::styled("✘ ", Style::default().fg(Theme::ACCENT_ROSE)),
-                Span::styled(msg.text.clone(), Theme::error_message()),
-            ])
-        }
-        MessageKind::Join => {
-            Line::from(vec![
-                ts,
-                Span::styled(
-                    format!("→ {} {}", msg.sender, msg.text),
-                    Theme::join_message(),
-                ),
-            ])
-        }
-        MessageKind::Part | MessageKind::Quit => {
-            Line::from(vec![
-                ts,
-                Span::styled(
-                    format!("← {} {}", msg.sender, msg.text),
-                    Theme::part_message(),
-                ),
-            ])
-        }
-        MessageKind::Notice => {
-            Line::from(vec![
-                ts,
-                Span::styled(
-                    format!("-{}- ", msg.sender),
-                    Theme::notice_message(),
-                ),
-                Span::styled(msg.text.clone(), Theme::notice_message()),
-            ])
-        }
+        MessageKind::Action => Line::from(vec![
+            ts,
+            Span::styled(
+                format!("* {} {}", msg.sender, msg.text),
+                Theme::action_message(),
+            ),
+        ]),
+        MessageKind::System => Line::from(vec![
+            ts,
+            Span::styled("• ", Style::default().fg(Theme::ACCENT_AMBER)),
+            Span::styled(msg.text.clone(), Theme::system_message()),
+        ]),
+        MessageKind::Error => Line::from(vec![
+            ts,
+            Span::styled("✘ ", Style::default().fg(Theme::ACCENT_ROSE)),
+            Span::styled(msg.text.clone(), Theme::error_message()),
+        ]),
+        MessageKind::Join => Line::from(vec![
+            ts,
+            Span::styled(
+                format!("→ {} {}", msg.sender, msg.text),
+                Theme::join_message(),
+            ),
+        ]),
+        MessageKind::Part | MessageKind::Quit => Line::from(vec![
+            ts,
+            Span::styled(
+                format!("← {} {}", msg.sender, msg.text),
+                Theme::part_message(),
+            ),
+        ]),
+        MessageKind::Notice => Line::from(vec![
+            ts,
+            Span::styled(format!("-{}- ", msg.sender), Theme::notice_message()),
+            Span::styled(msg.text.clone(), Theme::notice_message()),
+        ]),
     }
 }

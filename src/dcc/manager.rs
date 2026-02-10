@@ -29,15 +29,29 @@ impl DccManager {
             .transfers
             .iter_mut()
             .find(|t| t.id == transfer_id)
-            .ok_or_else(|| anyhow::anyhow!("Transfer {} not found. Use /dcc list to see available transfers.", transfer_id))?;
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Transfer {} not found. Use /dcc list to see available transfers.",
+                    transfer_id
+                )
+            })?;
 
         if transfer.status != DccTransferStatus::Pending {
-            return Err(anyhow::anyhow!("Transfer {} is not pending (status: {:?})", transfer_id, transfer.status));
+            return Err(anyhow::anyhow!(
+                "Transfer {} is not pending (status: {:?})",
+                transfer_id,
+                transfer.status
+            ));
         }
 
         let download_dir = &state.config.dcc.download_dir;
-        let path = security::safe_download_path(download_dir, &transfer.filename)
-            .ok_or_else(|| anyhow::anyhow!("Could not create safe download path for '{}'", transfer.filename))?;
+        let path =
+            security::safe_download_path(download_dir, &transfer.filename).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Could not create safe download path for '{}'",
+                    transfer.filename
+                )
+            })?;
 
         transfer.status = DccTransferStatus::Active;
 
@@ -53,7 +67,12 @@ impl DccManager {
             .unwrap_or(crate::app::state::BufferKey::ServerStatus(server_id));
         state.system_message(
             &key,
-            format!("DCC: downloading \"{}\" ({} bytes) to {}", filename, size, path.display()),
+            format!(
+                "DCC: downloading \"{}\" ({} bytes) to {}",
+                filename,
+                size,
+                path.display()
+            ),
         );
 
         transfer::spawn_receive(transfer_id, ip, port, size, path, self.event_tx.clone()).await?;

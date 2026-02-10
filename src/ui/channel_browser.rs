@@ -1,7 +1,9 @@
 use crate::app::state::AppState;
 use crate::ui::theme::Theme;
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{
+    Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+};
 
 pub fn render(frame: &mut Frame, state: &AppState) {
     if !state.channel_browser.visible {
@@ -9,15 +11,21 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     }
 
     let area = frame.area();
-    let popup_w = (area.width * 75 / 100).max(60).min(area.width.saturating_sub(4));
-    let popup_h = (area.height * 85 / 100).max(20).min(area.height.saturating_sub(2));
+    let popup_w = (area.width * 75 / 100)
+        .max(60)
+        .min(area.width.saturating_sub(4));
+    let popup_h = (area.height * 85 / 100)
+        .max(20)
+        .min(area.height.saturating_sub(2));
     let popup_x = (area.width.saturating_sub(popup_w)) / 2;
     let popup_y = (area.height.saturating_sub(popup_h)) / 2;
     let popup_area = Rect::new(popup_x, popup_y, popup_w, popup_h);
 
     frame.render_widget(Clear, popup_area);
 
-    let srv_name = state.channel_browser.server_id
+    let srv_name = state
+        .channel_browser
+        .server_id
         .and_then(|id| state.get_server(id))
         .map(|s| s.name.clone())
         .unwrap_or_default();
@@ -25,7 +33,11 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let title = if state.channel_browser.loading {
         format!(" Channel List — {} (loading...) ", srv_name)
     } else {
-        format!(" Channel List — {} ({} channels) ", srv_name, state.channel_browser.filtered.len())
+        format!(
+            " Channel List — {} ({} channels) ",
+            srv_name,
+            state.channel_browser.filtered.len()
+        )
     };
 
     let block = Block::default()
@@ -48,9 +60,18 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     // Filter bar
     let filter_area = Rect::new(inner.x, inner.y, inner.width, 1);
     let filter_line = Line::from(vec![
-        Span::styled(" Filter: ", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
         Span::styled(
-            if browser.filter.is_empty() { "(type to filter channels)" } else { &browser.filter },
+            " Filter: ",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            if browser.filter.is_empty() {
+                "(type to filter channels)"
+            } else {
+                &browser.filter
+            },
             if browser.filter.is_empty() {
                 Style::default().fg(Theme::TEXT_MUTED)
             } else {
@@ -65,7 +86,9 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let header_area = Rect::new(inner.x, inner.y + 1, inner.width, 1);
     let header = Line::from(Span::styled(
         format!("  {:<30} {:>6}  {}", "Channel", "Users", "Topic"),
-        Style::default().fg(Theme::ACCENT_LAVENDER).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Theme::ACCENT_LAVENDER)
+            .add_modifier(Modifier::BOLD),
     ));
     frame.render_widget(Paragraph::new(header), header_area);
 
@@ -79,7 +102,12 @@ pub fn render(frame: &mut Frame, state: &AppState) {
 
     // List area
     let list_h = (inner.height as usize).saturating_sub(5); // filter + header + sep + footer + help
-    let list_area = Rect::new(inner.x, inner.y + 3, inner.width.saturating_sub(1), list_h as u16);
+    let list_area = Rect::new(
+        inner.x,
+        inner.y + 3,
+        inner.width.saturating_sub(1),
+        list_h as u16,
+    );
 
     if browser.loading && browser.channels.is_empty() {
         let loading = Paragraph::new(Line::from(Span::styled(
@@ -135,7 +163,10 @@ pub fn render(frame: &mut Frame, state: &AppState) {
             let line_text = format!("  {:<30} {:>6}  {}", name_display, ch.users, topic_display);
 
             let style = if is_selected {
-                Style::default().fg(Theme::BG_DARK).bg(Theme::ACCENT_LAVENDER).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Theme::BG_DARK)
+                    .bg(Theme::ACCENT_LAVENDER)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Theme::TEXT_PRIMARY)
             };
@@ -154,8 +185,9 @@ pub fn render(frame: &mut Frame, state: &AppState) {
                 1,
                 list_h as u16,
             );
-            let mut scrollbar_state = ScrollbarState::new(browser.filtered.len().saturating_sub(list_h))
-                .position(browser.scroll_offset);
+            let mut scrollbar_state =
+                ScrollbarState::new(browser.filtered.len().saturating_sub(list_h))
+                    .position(browser.scroll_offset);
             frame.render_stateful_widget(
                 Scrollbar::new(ScrollbarOrientation::VerticalRight)
                     .thumb_style(Theme::scrollbar_thumb())
@@ -171,21 +203,48 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     let count_text = if browser.loading {
         format!(" {} channels so far...", browser.channels.len())
     } else {
-        format!(" {} / {} channels shown", browser.filtered.len(), browser.channels.len())
+        format!(
+            " {} / {} channels shown",
+            browser.filtered.len(),
+            browser.channels.len()
+        )
     };
-    let footer = Line::from(Span::styled(count_text, Style::default().fg(Theme::TEXT_SECONDARY)));
+    let footer = Line::from(Span::styled(
+        count_text,
+        Style::default().fg(Theme::TEXT_SECONDARY),
+    ));
     frame.render_widget(Paragraph::new(footer), footer_area);
 
     // Help
     let help_area = Rect::new(inner.x, inner.y + inner.height - 1, inner.width, 1);
     let help = Line::from(vec![
-        Span::styled(" ↑↓/PgUp/Dn", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " ↑↓/PgUp/Dn",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Navigate  ", Style::default().fg(Theme::TEXT_SECONDARY)),
-        Span::styled("Enter", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Enter",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Join  ", Style::default().fg(Theme::TEXT_SECONDARY)),
-        Span::styled("Ctrl+R", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Ctrl+R",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Refresh  ", Style::default().fg(Theme::TEXT_SECONDARY)),
-        Span::styled("Esc", Style::default().fg(Theme::ACCENT_AMBER).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "Esc",
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Close", Style::default().fg(Theme::TEXT_SECONDARY)),
     ]);
     frame.render_widget(Paragraph::new(help), help_area);

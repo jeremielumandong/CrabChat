@@ -29,10 +29,7 @@ pub fn is_private_ip(ip: &IpAddr) -> bool {
 pub fn sanitize_filename(filename: &str) -> Option<String> {
     // Strip path components for both Unix and Windows-style paths
     // We must handle backslash manually since on Unix it's a valid char
-    let name = filename
-        .rsplit(|c| c == '/' || c == '\\')
-        .next()
-        .unwrap_or(filename);
+    let name = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     // Also apply std Path for extra safety
     let name = Path::new(name)
         .file_name()
@@ -119,12 +116,21 @@ mod tests {
     #[test]
     fn test_sanitize_filename() {
         assert_eq!(sanitize_filename("hello.txt"), Some("hello.txt".into()));
-        assert_eq!(sanitize_filename("../../../etc/passwd"), Some("passwd".into()));
-        assert_eq!(sanitize_filename("..\\..\\windows\\system32"), Some("system32".into()));
+        assert_eq!(
+            sanitize_filename("../../../etc/passwd"),
+            Some("passwd".into())
+        );
+        assert_eq!(
+            sanitize_filename("..\\..\\windows\\system32"),
+            Some("system32".into())
+        );
         assert_eq!(sanitize_filename(".hidden"), Some("hidden".into()));
         assert_eq!(sanitize_filename("..."), None);
         assert_eq!(sanitize_filename(""), None);
-        assert_eq!(sanitize_filename("normal file.pdf"), Some("normal file.pdf".into()));
+        assert_eq!(
+            sanitize_filename("normal file.pdf"),
+            Some("normal file.pdf".into())
+        );
     }
 
     #[test]

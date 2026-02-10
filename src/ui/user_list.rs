@@ -6,7 +6,11 @@ use ratatui::widgets::{Block, Borders, List, ListItem};
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let focused = state.focus == FocusPanel::UserList;
     let (border_style, border_type, bg) = if focused {
-        (Theme::border_focused(), Theme::border_type_focused(), Theme::panel_bg_focused())
+        (
+            Theme::border_focused(),
+            Theme::border_type_focused(),
+            Theme::panel_bg_focused(),
+        )
     } else {
         (Theme::border(), Theme::border_type(), Theme::panel_bg())
     };

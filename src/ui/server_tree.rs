@@ -6,7 +6,11 @@ use ratatui::widgets::{Block, Borders, List, ListItem};
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let focused = state.focus == FocusPanel::ServerTree;
     let (border_style, border_type, bg) = if focused {
-        (Theme::border_focused(), Theme::border_type_focused(), Theme::panel_bg_focused())
+        (
+            Theme::border_focused(),
+            Theme::border_type_focused(),
+            Theme::panel_bg_focused(),
+        )
     } else {
         (Theme::border(), Theme::border_type(), Theme::panel_bg())
     };
@@ -29,13 +33,10 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             ConnectionStatus::Disconnected => ("◈", Theme::server_disconnected()),
         };
 
-        let is_active_server_status =
-            state.active_buffer == Some(BufferKey::ServerStatus(srv.id));
+        let is_active_server_status = state.active_buffer == Some(BufferKey::ServerStatus(srv.id));
 
         let server_style = if is_active_server_status {
-            style
-                .add_modifier(Modifier::BOLD)
-                .bg(Theme::BG_ELEVATED)
+            style.add_modifier(Modifier::BOLD).bg(Theme::BG_ELEVATED)
         } else {
             style
         };

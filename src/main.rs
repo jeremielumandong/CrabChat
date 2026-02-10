@@ -61,11 +61,7 @@ async fn main() -> Result<()> {
 
 fn restore_terminal() -> Result<()> {
     disable_raw_mode()?;
-    execute!(
-        io::stdout(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
+    execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture)?;
     Ok(())
 }
 
@@ -169,8 +165,14 @@ async fn run_app(
         state.system_message(&key, String::new());
         state.system_message(&key, "Server browser: /servers  or press F2".to_string());
         state.system_message(&key, "Quick connect:  /server connect <name>".to_string());
-        state.system_message(&key, "Custom server:  /server add <name> <host:port>".to_string());
-        state.system_message(&key, "Channel list:   /channels or press F3 (when connected)".to_string());
+        state.system_message(
+            &key,
+            "Custom server:  /server add <name> <host:port>".to_string(),
+        );
+        state.system_message(
+            &key,
+            "Channel list:   /channels or press F3 (when connected)".to_string(),
+        );
         state.system_message(&key, "Help:           /help".to_string());
     }
 
@@ -213,10 +215,7 @@ async fn run_app(
                         state.error_message(&key, format!("Send failed: {}", e));
                     }
                 }
-                Action::JoinChannel {
-                    server_id,
-                    channel,
-                } => {
+                Action::JoinChannel { server_id, channel } => {
                     if let Err(e) = irc_manager.send_join(server_id, &channel) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("Join failed: {}", e));
@@ -227,9 +226,7 @@ async fn run_app(
                     channel,
                     reason,
                 } => {
-                    if let Err(e) =
-                        irc_manager.send_part(server_id, &channel, reason.as_deref())
-                    {
+                    if let Err(e) = irc_manager.send_part(server_id, &channel, reason.as_deref()) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("Part failed: {}", e));
                     }
@@ -313,25 +310,44 @@ async fn run_app(
                     state.quit_message = message;
                     state.should_quit = true;
                 }
-                Action::SendKick { server_id, channel, user, reason } => {
-                    if let Err(e) = irc_manager.send_kick(server_id, &channel, &user, reason.as_deref()) {
+                Action::SendKick {
+                    server_id,
+                    channel,
+                    user,
+                    reason,
+                } => {
+                    if let Err(e) =
+                        irc_manager.send_kick(server_id, &channel, &user, reason.as_deref())
+                    {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("Kick failed: {}", e));
                     }
                 }
-                Action::SendMode { server_id, target, modes } => {
+                Action::SendMode {
+                    server_id,
+                    target,
+                    modes,
+                } => {
                     if let Err(e) = irc_manager.send_mode(server_id, &target, &modes) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("Mode failed: {}", e));
                     }
                 }
-                Action::SetTopic { server_id, channel, text } => {
+                Action::SetTopic {
+                    server_id,
+                    channel,
+                    text,
+                } => {
                     if let Err(e) = irc_manager.send_topic(server_id, &channel, &text) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("Topic failed: {}", e));
                     }
                 }
-                Action::SendNotice { server_id, target, text } => {
+                Action::SendNotice {
+                    server_id,
+                    target,
+                    text,
+                } => {
                     if let Err(e) = irc_manager.send_notice(server_id, &target, &text) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("Notice failed: {}", e));
@@ -367,13 +383,21 @@ async fn run_app(
                         state.error_message(&key, format!("List failed: {}", e));
                     }
                 }
-                Action::SendCtcp { server_id, target, command } => {
+                Action::SendCtcp {
+                    server_id,
+                    target,
+                    command,
+                } => {
                     if let Err(e) = irc_manager.send_ctcp(server_id, &target, &command) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("CTCP failed: {}", e));
                     }
                 }
-                Action::SendCtcpReply { server_id, target, response } => {
+                Action::SendCtcpReply {
+                    server_id,
+                    target,
+                    response,
+                } => {
                     if let Err(e) = irc_manager.send_ctcp_reply(server_id, &target, &response) {
                         let key = BufferKey::ServerStatus(server_id);
                         state.error_message(&key, format!("CTCP reply failed: {}", e));

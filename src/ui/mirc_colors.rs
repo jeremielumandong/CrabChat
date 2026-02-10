@@ -35,7 +35,10 @@ pub fn parse_mirc_formatted(text: &str, base_style: Style) -> Vec<Span<'static>>
             // Bold toggle
             0x02 => {
                 if !current_text.is_empty() {
-                    spans.push(Span::styled(std::mem::take(&mut current_text), current_style));
+                    spans.push(Span::styled(
+                        std::mem::take(&mut current_text),
+                        current_style,
+                    ));
                 }
                 if current_style.add_modifier.contains(Modifier::BOLD) {
                     current_style = current_style.remove_modifier(Modifier::BOLD);
@@ -47,7 +50,10 @@ pub fn parse_mirc_formatted(text: &str, base_style: Style) -> Vec<Span<'static>>
             // Italic toggle
             0x1D => {
                 if !current_text.is_empty() {
-                    spans.push(Span::styled(std::mem::take(&mut current_text), current_style));
+                    spans.push(Span::styled(
+                        std::mem::take(&mut current_text),
+                        current_style,
+                    ));
                 }
                 if current_style.add_modifier.contains(Modifier::ITALIC) {
                     current_style = current_style.remove_modifier(Modifier::ITALIC);
@@ -59,7 +65,10 @@ pub fn parse_mirc_formatted(text: &str, base_style: Style) -> Vec<Span<'static>>
             // Underline toggle
             0x1F => {
                 if !current_text.is_empty() {
-                    spans.push(Span::styled(std::mem::take(&mut current_text), current_style));
+                    spans.push(Span::styled(
+                        std::mem::take(&mut current_text),
+                        current_style,
+                    ));
                 }
                 if current_style.add_modifier.contains(Modifier::UNDERLINED) {
                     current_style = current_style.remove_modifier(Modifier::UNDERLINED);
@@ -71,7 +80,10 @@ pub fn parse_mirc_formatted(text: &str, base_style: Style) -> Vec<Span<'static>>
             // Color code
             0x03 => {
                 if !current_text.is_empty() {
-                    spans.push(Span::styled(std::mem::take(&mut current_text), current_style));
+                    spans.push(Span::styled(
+                        std::mem::take(&mut current_text),
+                        current_style,
+                    ));
                 }
                 i += 1;
                 // Parse foreground color (1-2 digits)
@@ -116,7 +128,10 @@ pub fn parse_mirc_formatted(text: &str, base_style: Style) -> Vec<Span<'static>>
             // Reset all formatting
             0x0F => {
                 if !current_text.is_empty() {
-                    spans.push(Span::styled(std::mem::take(&mut current_text), current_style));
+                    spans.push(Span::styled(
+                        std::mem::take(&mut current_text),
+                        current_style,
+                    ));
                 }
                 current_style = base_style;
                 i += 1;
@@ -124,7 +139,10 @@ pub fn parse_mirc_formatted(text: &str, base_style: Style) -> Vec<Span<'static>>
             // Reverse colors
             0x16 => {
                 if !current_text.is_empty() {
-                    spans.push(Span::styled(std::mem::take(&mut current_text), current_style));
+                    spans.push(Span::styled(
+                        std::mem::take(&mut current_text),
+                        current_style,
+                    ));
                 }
                 let old_fg = current_style.fg;
                 let old_bg = current_style.bg;
@@ -171,8 +189,6 @@ pub fn highlight_urls(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
         let style = span.style;
 
         let mut remaining = text.as_str();
-        let mut has_url = false;
-
         while !remaining.is_empty() {
             // Find earliest URL
             let mut earliest_pos = None;
@@ -185,7 +201,6 @@ pub fn highlight_urls(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
             }
 
             if let Some(pos) = earliest_pos {
-                has_url = true;
                 // Text before URL
                 if pos > 0 {
                     result.push(Span::styled(remaining[..pos].to_string(), style));
@@ -204,11 +219,7 @@ pub fn highlight_urls(spans: Vec<Span<'static>>) -> Vec<Span<'static>> {
                 remaining = &remaining[url_start + url_end..];
             } else {
                 // No more URLs in this span
-                if has_url {
-                    result.push(Span::styled(remaining.to_string(), style));
-                } else {
-                    result.push(Span::styled(remaining.to_string(), style));
-                }
+                result.push(Span::styled(remaining.to_string(), style));
                 break;
             }
         }

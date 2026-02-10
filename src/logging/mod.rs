@@ -65,7 +65,13 @@ impl ChatLogger {
         // Sanitize target for filename
         let safe_target: String = target
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect();
 
         let date = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -85,20 +91,23 @@ impl ChatLogger {
         let filepath = log_dir.join(&filename);
 
         // Get or create file handle
-        let handle = self.file_handles.entry(filename.clone()).or_insert_with(|| {
-            let _ = fs::create_dir_all(&log_dir);
-            OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&filepath)
-                .unwrap_or_else(|_| {
-                    // Fallback: create a temp file that goes nowhere
-                    OpenOptions::new()
-                        .write(true)
-                        .open(if cfg!(unix) { "/dev/null" } else { "NUL" })
-                        .unwrap()
-                })
-        });
+        let handle = self
+            .file_handles
+            .entry(filename.clone())
+            .or_insert_with(|| {
+                let _ = fs::create_dir_all(&log_dir);
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&filepath)
+                    .unwrap_or_else(|_| {
+                        // Fallback: create a temp file that goes nowhere
+                        OpenOptions::new()
+                            .write(true)
+                            .open(if cfg!(unix) { "/dev/null" } else { "NUL" })
+                            .unwrap()
+                    })
+            });
 
         let _ = writeln!(handle, "{}", line);
     }

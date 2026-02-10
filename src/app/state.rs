@@ -146,6 +146,7 @@ pub struct ChannelUser {
 
 impl ChannelUser {
     /// Returns the nick prefixed with its mode symbol (e.g. `"@alice"`).
+    #[allow(dead_code)]
     pub fn display_name(&self) -> String {
         format!("{}{}", self.prefix, self.nick)
     }
@@ -502,12 +503,17 @@ impl ChannelBrowser {
 
     pub fn add_channel(&mut self, name: String, users: usize, topic: String) {
         // Strip IRC formatting codes from topic for clean display
-        let clean_topic: String = topic.chars().filter(|&c| {
-            !matches!(c, '\x02' | '\x1D' | '\x1F' | '\x0F' | '\x16')
-        }).collect();
+        let clean_topic: String = topic
+            .chars()
+            .filter(|&c| !matches!(c, '\x02' | '\x1D' | '\x1F' | '\x0F' | '\x16'))
+            .collect();
         // Strip color codes (\x03 followed by optional digits)
         let clean_topic = strip_color_codes(&clean_topic);
-        self.channels.push(ChannelListEntry { name, users, topic: clean_topic });
+        self.channels.push(ChannelListEntry {
+            name,
+            users,
+            topic: clean_topic,
+        });
     }
 
     pub fn finish_loading(&mut self) {
@@ -535,7 +541,10 @@ impl ChannelBrowser {
 
     pub fn apply_filter(&mut self) {
         let filter_lower = self.filter.to_lowercase();
-        self.filtered = self.channels.iter().enumerate()
+        self.filtered = self
+            .channels
+            .iter()
+            .enumerate()
             .filter(|(_, ch)| {
                 if filter_lower.is_empty() {
                     return true;
@@ -571,7 +580,8 @@ impl ChannelBrowser {
     }
 
     pub fn selected_channel(&self) -> Option<&ChannelListEntry> {
-        self.filtered.get(self.selected)
+        self.filtered
+            .get(self.selected)
             .and_then(|&idx| self.channels.get(idx))
     }
 }
@@ -744,7 +754,11 @@ impl AppState {
         if let Some(ref msg) = self.status_message {
             return msg.clone();
         }
-        let connected = self.servers.iter().filter(|s| s.status == ConnectionStatus::Connected).count();
+        let connected = self
+            .servers
+            .iter()
+            .filter(|s| s.status == ConnectionStatus::Connected)
+            .count();
         let total = self.servers.len();
         let active = self
             .transfers

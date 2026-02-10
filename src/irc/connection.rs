@@ -12,12 +12,14 @@ use tokio::sync::mpsc;
 
 /// A live IRC connection, holding the sender half used to write commands.
 pub struct IrcConnection {
+    #[allow(dead_code)]
     pub server_id: ServerId,
     pub sender: irc::client::Sender,
 }
 
 /// Create an IRC client, identify with the server, and spawn a background
 /// message reader task. Returns the [`IrcConnection`] for sending commands.
+#[allow(clippy::too_many_arguments)]
 pub async fn spawn_connection(
     server_id: ServerId,
     host: String,
@@ -37,10 +39,10 @@ pub async fn spawn_connection(
         port: Some(port),
         use_tls: Some(tls),
         nickname: Some(nickname),
-        username: username,
-        realname: realname,
-        password: password,
-        nick_password: nick_password,
+        username,
+        realname,
+        password,
+        nick_password,
         channels,
         dangerously_accept_invalid_certs: Some(accept_invalid_certs),
         ..Config::default()

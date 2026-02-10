@@ -38,6 +38,7 @@ pub fn load_config() -> Result<AppConfig> {
 
 /// Serialize and write the configuration to disk, creating parent directories
 /// as needed.
+#[allow(dead_code)]
 pub fn save_config(config: &AppConfig) -> Result<()> {
     let path = config_path();
     if let Some(parent) = path.parent() {

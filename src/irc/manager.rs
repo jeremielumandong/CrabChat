@@ -87,7 +87,12 @@ impl IrcManager {
         Ok(())
     }
 
-    pub fn send_part(&self, server_id: ServerId, channel: &str, reason: Option<&str>) -> Result<()> {
+    pub fn send_part(
+        &self,
+        server_id: ServerId,
+        channel: &str,
+        reason: Option<&str>,
+    ) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
             sender.send(irc::client::prelude::Command::PART(
                 channel.to_string(),
@@ -104,7 +109,13 @@ impl IrcManager {
         Ok(())
     }
 
-    pub fn send_kick(&self, server_id: ServerId, channel: &str, user: &str, reason: Option<&str>) -> Result<()> {
+    pub fn send_kick(
+        &self,
+        server_id: ServerId,
+        channel: &str,
+        user: &str,
+        reason: Option<&str>,
+    ) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
             sender.send(irc::client::prelude::Command::KICK(
                 channel.to_string(),
@@ -147,10 +158,7 @@ impl IrcManager {
 
     pub fn send_whois(&self, server_id: ServerId, nick: &str) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
-            sender.send(irc::client::prelude::Command::WHOIS(
-                None,
-                nick.to_string(),
-            ))?;
+            sender.send(irc::client::prelude::Command::WHOIS(None, nick.to_string()))?;
         }
         Ok(())
     }
@@ -186,10 +194,7 @@ impl IrcManager {
 
     pub fn send_list(&self, server_id: ServerId) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
-            sender.send(irc::client::prelude::Command::LIST(
-                None,
-                None,
-            ))?;
+            sender.send(irc::client::prelude::Command::LIST(None, None))?;
         }
         Ok(())
     }

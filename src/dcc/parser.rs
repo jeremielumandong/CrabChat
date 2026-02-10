@@ -10,12 +10,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 /// Parse and handle incoming DCC CTCP messages
 /// Format: DCC SEND <filename> <ip_decimal> <port> <filesize>
-pub fn handle_ctcp_dcc(
-    state: &mut AppState,
-    server_id: ServerId,
-    from: &str,
-    ctcp_content: &str,
-) {
+pub fn handle_ctcp_dcc(state: &mut AppState, server_id: ServerId, from: &str, ctcp_content: &str) {
     if let Some(offer) = parse_dcc_send(ctcp_content) {
         let transfer_id = state.allocate_transfer_id();
 
@@ -85,10 +80,10 @@ pub struct DccSendOffer {
 pub fn parse_dcc_send(ctcp: &str) -> Option<DccSendOffer> {
     let content = ctcp.strip_prefix("DCC SEND ")?;
 
-    let (filename, rest) = if content.starts_with('"') {
-        let end_quote = content[1..].find('"')?;
-        let filename = &content[1..=end_quote];
-        let rest = content[end_quote + 2..].trim();
+    let (filename, rest) = if let Some(stripped) = content.strip_prefix('"') {
+        let end_quote = stripped.find('"')?;
+        let filename = &stripped[..end_quote];
+        let rest = stripped[end_quote + 1..].trim();
         (filename.to_string(), rest)
     } else {
         let space = content.find(' ')?;

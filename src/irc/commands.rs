@@ -6,40 +6,111 @@
 /// A parsed user command. Each variant corresponds to a `/command`.
 #[derive(Debug)]
 pub enum ParsedCommand {
-    ServerAdd { name: String, host: String, port: u16, tls: bool },
-    ServerConnect { name: String },
+    ServerAdd {
+        name: String,
+        host: String,
+        port: u16,
+        tls: bool,
+    },
+    ServerConnect {
+        name: String,
+    },
     ServerList,
     ServerDisconnect,
-    Join { channel: String },
-    Part { channel: Option<String>, reason: Option<String> },
-    Nick { nick: String },
-    Msg { target: String, text: String },
-    Me { text: String },
+    Join {
+        channel: String,
+    },
+    Part {
+        channel: Option<String>,
+        reason: Option<String>,
+    },
+    Nick {
+        nick: String,
+    },
+    Msg {
+        target: String,
+        text: String,
+    },
+    Me {
+        text: String,
+    },
     DccList,
-    DccAccept { id: usize },
-    DccCancel { id: usize },
-    Quit { message: Option<String> },
+    DccAccept {
+        id: usize,
+    },
+    DccCancel {
+        id: usize,
+    },
+    Quit {
+        message: Option<String>,
+    },
     Help,
-    Kick { channel: Option<String>, user: String, reason: Option<String> },
-    Ban { channel: Option<String>, mask: String },
-    Mode { target: String, modes: String },
-    Op { channel: Option<String>, nick: String },
-    Deop { channel: Option<String>, nick: String },
-    Voice { channel: Option<String>, nick: String },
-    Devoice { channel: Option<String>, nick: String },
-    Topic { text: String },
-    Notice { target: String, text: String },
-    Whois { nick: String },
-    Who { target: String },
-    Away { message: Option<String> },
-    Raw { command: String },
+    Kick {
+        channel: Option<String>,
+        user: String,
+        reason: Option<String>,
+    },
+    Ban {
+        channel: Option<String>,
+        mask: String,
+    },
+    Mode {
+        target: String,
+        modes: String,
+    },
+    Op {
+        channel: Option<String>,
+        nick: String,
+    },
+    Deop {
+        channel: Option<String>,
+        nick: String,
+    },
+    Voice {
+        channel: Option<String>,
+        nick: String,
+    },
+    Devoice {
+        channel: Option<String>,
+        nick: String,
+    },
+    Topic {
+        text: String,
+    },
+    Notice {
+        target: String,
+        text: String,
+    },
+    Whois {
+        nick: String,
+    },
+    Who {
+        target: String,
+    },
+    Away {
+        message: Option<String>,
+    },
+    Raw {
+        command: String,
+    },
     List,
-    Slap { nick: String },
-    Ignore { nick: String },
-    Unignore { nick: String },
+    Slap {
+        nick: String,
+    },
+    Ignore {
+        nick: String,
+    },
+    Unignore {
+        nick: String,
+    },
     IgnoreList,
-    Notify { nick: Option<String> },
-    Ctcp { target: String, command: String },
+    Notify {
+        nick: Option<String>,
+    },
+    Ctcp {
+        target: String,
+        command: String,
+    },
     ServerBrowser,
     ChannelBrowser,
 }
@@ -67,7 +138,12 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
                     let name = rest_parts.next()?.to_string();
                     let addr = rest_parts.next().unwrap_or(&name);
                     let (host, port, tls) = parse_host_port(addr);
-                    Some(ParsedCommand::ServerAdd { name, host, port, tls })
+                    Some(ParsedCommand::ServerAdd {
+                        name,
+                        host,
+                        port,
+                        tls,
+                    })
                 }
                 "connect" => {
                     let name = parts.get(2)?.trim().to_string();
@@ -117,7 +193,11 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
             Some(ParsedCommand::Msg { target, text })
         }
         "me" => {
-            let text = if input.len() > 4 { input[4..].to_string() } else { String::new() };
+            let text = if input.len() > 4 {
+                input[4..].to_string()
+            } else {
+                String::new()
+            };
             Some(ParsedCommand::Me { text })
         }
         "dcc" => {
@@ -139,7 +219,7 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
         }
         "quit" | "exit" => {
             let message = if parts.len() > 1 {
-                Some(input[1..].splitn(2, ' ').nth(1).unwrap_or("").to_string())
+                input[1..].split_once(' ').map(|x| x.1.to_string())
             } else {
                 None
             };
@@ -160,10 +240,18 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
                     }
                     None => return None,
                 };
-                Some(ParsedCommand::Kick { channel: Some(arg1), user, reason })
+                Some(ParsedCommand::Kick {
+                    channel: Some(arg1),
+                    user,
+                    reason,
+                })
             } else {
                 // /kick user [reason]
-                Some(ParsedCommand::Kick { channel: None, user: arg1, reason: rest })
+                Some(ParsedCommand::Kick {
+                    channel: None,
+                    user: arg1,
+                    reason: rest,
+                })
             }
         }
         "ban" => {
@@ -171,9 +259,15 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
             let rest = parts.get(2).map(|s| s.to_string());
             if arg1.starts_with('#') || arg1.starts_with('&') {
                 let mask = rest?;
-                Some(ParsedCommand::Ban { channel: Some(arg1), mask })
+                Some(ParsedCommand::Ban {
+                    channel: Some(arg1),
+                    mask,
+                })
             } else {
-                Some(ParsedCommand::Ban { channel: None, mask: arg1 })
+                Some(ParsedCommand::Ban {
+                    channel: None,
+                    mask: arg1,
+                })
             }
         }
         "mode" => {
@@ -185,36 +279,60 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
             let arg1 = parts.get(1)?.to_string();
             let rest = parts.get(2).map(|s| s.trim().to_string());
             if arg1.starts_with('#') || arg1.starts_with('&') {
-                Some(ParsedCommand::Op { channel: Some(arg1), nick: rest? })
+                Some(ParsedCommand::Op {
+                    channel: Some(arg1),
+                    nick: rest?,
+                })
             } else {
-                Some(ParsedCommand::Op { channel: None, nick: arg1 })
+                Some(ParsedCommand::Op {
+                    channel: None,
+                    nick: arg1,
+                })
             }
         }
         "deop" => {
             let arg1 = parts.get(1)?.to_string();
             let rest = parts.get(2).map(|s| s.trim().to_string());
             if arg1.starts_with('#') || arg1.starts_with('&') {
-                Some(ParsedCommand::Deop { channel: Some(arg1), nick: rest? })
+                Some(ParsedCommand::Deop {
+                    channel: Some(arg1),
+                    nick: rest?,
+                })
             } else {
-                Some(ParsedCommand::Deop { channel: None, nick: arg1 })
+                Some(ParsedCommand::Deop {
+                    channel: None,
+                    nick: arg1,
+                })
             }
         }
         "voice" => {
             let arg1 = parts.get(1)?.to_string();
             let rest = parts.get(2).map(|s| s.trim().to_string());
             if arg1.starts_with('#') || arg1.starts_with('&') {
-                Some(ParsedCommand::Voice { channel: Some(arg1), nick: rest? })
+                Some(ParsedCommand::Voice {
+                    channel: Some(arg1),
+                    nick: rest?,
+                })
             } else {
-                Some(ParsedCommand::Voice { channel: None, nick: arg1 })
+                Some(ParsedCommand::Voice {
+                    channel: None,
+                    nick: arg1,
+                })
             }
         }
         "devoice" => {
             let arg1 = parts.get(1)?.to_string();
             let rest = parts.get(2).map(|s| s.trim().to_string());
             if arg1.starts_with('#') || arg1.starts_with('&') {
-                Some(ParsedCommand::Devoice { channel: Some(arg1), nick: rest? })
+                Some(ParsedCommand::Devoice {
+                    channel: Some(arg1),
+                    nick: rest?,
+                })
             } else {
-                Some(ParsedCommand::Devoice { channel: None, nick: arg1 })
+                Some(ParsedCommand::Devoice {
+                    channel: None,
+                    nick: arg1,
+                })
             }
         }
         "topic" | "t" => {
@@ -242,7 +360,7 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
         }
         "away" => {
             let message = if parts.len() > 1 {
-                Some(input[1..].splitn(2, ' ').nth(1).unwrap_or("").to_string())
+                input[1..].split_once(' ').map(|x| x.1.to_string())
             } else {
                 None
             };
@@ -276,7 +394,10 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
         }
         "ctcp" => {
             let target = parts.get(1)?.to_string();
-            let command = parts.get(2).map(|s| s.to_string()).unwrap_or_else(|| "VERSION".to_string());
+            let command = parts
+                .get(2)
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "VERSION".to_string());
             Some(ParsedCommand::Ctcp { target, command })
         }
         "servers" | "browse" => Some(ParsedCommand::ServerBrowser),
@@ -293,10 +414,13 @@ fn parse_host_port(addr: &str) -> (String, u16, bool) {
     if let Some(colon_pos) = addr.rfind(':') {
         let host = addr[..colon_pos].to_string();
         let port_str = &addr[colon_pos + 1..];
-        let (port_str, tls) = if port_str.starts_with('+') {
-            (&port_str[1..], true)
+        let (port_str, tls) = if let Some(stripped) = port_str.strip_prefix('+') {
+            (stripped, true)
         } else {
-            (port_str, port_str.parse::<u16>().map_or(true, |p| p == 6697))
+            (
+                port_str,
+                port_str.parse::<u16>().map_or(true, |p| p == 6697),
+            )
         };
         let port = port_str.parse().unwrap_or(6697);
         (host, port, tls)

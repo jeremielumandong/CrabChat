@@ -6,7 +6,12 @@ use ratatui::widgets::Paragraph;
 pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let bar_bg = Style::default().bg(Theme::STATUSBAR_BG);
     let seg_style = |fg: Color| Style::default().fg(fg).bg(Theme::STATUS_SEG_BG);
-    let sep = Span::styled(" │ ", Style::default().fg(Theme::BORDER_DIM).bg(Theme::STATUSBAR_BG));
+    let sep = Span::styled(
+        " │ ",
+        Style::default()
+            .fg(Theme::BORDER_DIM)
+            .bg(Theme::STATUSBAR_BG),
+    );
 
     let mut parts: Vec<Span> = Vec::new();
 
@@ -18,10 +23,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 seg_style(Theme::ACCENT_GREEN).add_modifier(Modifier::BOLD),
             ));
             if srv.is_away {
-                parts.push(Span::styled(
-                    " [AWAY] ",
-                    seg_style(Theme::ACCENT_AMBER),
-                ));
+                parts.push(Span::styled(" [AWAY] ", seg_style(Theme::ACCENT_AMBER)));
             }
             parts.push(sep.clone());
         }
@@ -30,7 +32,9 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     // Status text
     parts.push(Span::styled(
         format!(" {} ", state.status_line()),
-        Style::default().fg(Theme::TEXT_PRIMARY).bg(Theme::STATUSBAR_BG),
+        Style::default()
+            .fg(Theme::TEXT_PRIMARY)
+            .bg(Theme::STATUSBAR_BG),
     ));
 
     // DCC transfer info with inline progress bar
@@ -58,15 +62,21 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
             parts.push(Span::styled(
                 format!(" {} ", t.filename),
-                Style::default().fg(Theme::ACCENT_AMBER).bg(Theme::STATUSBAR_BG),
+                Style::default()
+                    .fg(Theme::ACCENT_AMBER)
+                    .bg(Theme::STATUSBAR_BG),
             ));
             parts.push(Span::styled(
                 bar,
-                Style::default().fg(Theme::ACCENT_TEAL).bg(Theme::STATUSBAR_BG),
+                Style::default()
+                    .fg(Theme::ACCENT_TEAL)
+                    .bg(Theme::STATUSBAR_BG),
             ));
             parts.push(Span::styled(
                 format!(" {}% ", pct),
-                Style::default().fg(Theme::TEXT_SECONDARY).bg(Theme::STATUSBAR_BG),
+                Style::default()
+                    .fg(Theme::TEXT_SECONDARY)
+                    .bg(Theme::STATUSBAR_BG),
             ));
         }
     }
@@ -83,13 +93,13 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let used: usize = parts.iter().map(|s| s.content.len()).sum();
     let focus_len = focus_icon.len() + focus_label.len() + 3; // " icon LABEL "
     let remaining = (area.width as usize).saturating_sub(used + focus_len);
-    parts.push(Span::styled(
-        " ".repeat(remaining),
-        bar_bg,
-    ));
+    parts.push(Span::styled(" ".repeat(remaining), bar_bg));
     parts.push(Span::styled(
         format!(" {} {} ", focus_icon, focus_label),
-        Style::default().fg(focus_color).bg(Theme::STATUS_SEG_BG).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(focus_color)
+            .bg(Theme::STATUS_SEG_BG)
+            .add_modifier(Modifier::BOLD),
     ));
 
     let line = Line::from(parts);

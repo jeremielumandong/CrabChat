@@ -29,7 +29,7 @@ pub fn compute_layout(area: Rect) -> AppLayout {
         .spacing(1)
         .constraints([
             Constraint::Length(22), // Left panel (wider)
-            Constraint::Min(30),   // Right content
+            Constraint::Min(30),    // Right content
         ])
         .split(content);
 
@@ -55,7 +55,7 @@ pub fn compute_layout(area: Rect) -> AppLayout {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // Topic bar
-            Constraint::Min(5),   // Messages
+            Constraint::Min(5),    // Messages
             Constraint::Length(3), // Input box
         ])
         .split(right_panel);
