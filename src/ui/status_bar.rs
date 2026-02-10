@@ -37,6 +37,22 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
             .bg(Theme::STATUSBAR_BG),
     ));
 
+    // Paused indicator
+    if let Some(ref buf_key) = state.active_buffer {
+        if let Some(buf) = state.buffers.get(buf_key) {
+            if buf.paused {
+                parts.push(sep.clone());
+                parts.push(Span::styled(
+                    " PAUSED ",
+                    Style::default()
+                        .fg(Theme::BG_DARK)
+                        .bg(Theme::ACCENT_AMBER)
+                        .add_modifier(Modifier::BOLD),
+                ));
+            }
+        }
+    }
+
     // DCC transfer info with inline progress bar
     let active_transfers: Vec<_> = state
         .transfers

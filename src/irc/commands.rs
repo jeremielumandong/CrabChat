@@ -116,6 +116,7 @@ pub enum ParsedCommand {
     SearchResults {
         path: Option<String>,
     },
+    ChannelInfo,
 }
 
 /// Parse a slash-command string into a [`ParsedCommand`].
@@ -403,6 +404,7 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
                 .unwrap_or_else(|| "VERSION".to_string());
             Some(ParsedCommand::Ctcp { target, command })
         }
+        "channel" | "ch" => Some(ParsedCommand::ChannelInfo),
         "servers" | "browse" => Some(ParsedCommand::ServerBrowser),
         "channels" => Some(ParsedCommand::ChannelBrowser),
         "search" => {

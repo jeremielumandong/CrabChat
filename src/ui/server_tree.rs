@@ -25,6 +25,50 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let mut items: Vec<ListItem> = Vec::new();
 
+    // Highlights entry at the top
+    {
+        let hl_key = BufferKey::Highlights;
+        let buf = state.buffers.get(&hl_key);
+        let is_active = state.active_buffer.as_ref() == Some(&hl_key);
+        let has_mention = buf.map(|b| b.has_mention).unwrap_or(false);
+        let unread = buf.map(|b| b.unread_count).unwrap_or(0);
+
+        let style = if is_active {
+            Style::default()
+                .fg(Theme::ACCENT_AMBER)
+                .add_modifier(Modifier::BOLD)
+                .bg(Theme::BG_ELEVATED)
+        } else if has_mention {
+            Theme::channel_mention()
+        } else if unread > 0 {
+            Theme::channel_unread()
+        } else {
+            Style::default().fg(Theme::TEXT_SECONDARY)
+        };
+
+        let mut spans = vec![
+            Span::styled(
+                " ★ ",
+                Style::default()
+                    .fg(Theme::ACCENT_AMBER)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("Highlights", style),
+        ];
+
+        if unread > 0 && !is_active {
+            spans.push(Span::styled(
+                format!(" {}", unread),
+                Style::default()
+                    .fg(Theme::BG_DARK)
+                    .bg(Theme::ACCENT_AMBER)
+                    .add_modifier(Modifier::BOLD),
+            ));
+        }
+
+        items.push(ListItem::new(Line::from(spans)));
+    }
+
     for srv in &state.servers {
         // Server line with diamond status icons
         let (indicator, style) = match srv.status {

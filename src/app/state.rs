@@ -17,6 +17,8 @@ use std::time::Instant;
 /// a private query (DM) conversation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BufferKey {
+    /// Global highlights buffer — mentions, PMs, and notices. Sorts first.
+    Highlights,
     /// The server status/console window.
     ServerStatus(ServerId),
     /// A channel conversation (e.g. `#rust`).
@@ -73,6 +75,8 @@ pub struct Buffer {
     pub unread_count: usize,
     /// Whether the user's nick was mentioned while this buffer was inactive.
     pub has_mention: bool,
+    /// When true, new messages don't auto-scroll — the view stays in place.
+    pub paused: bool,
 }
 
 impl Buffer {
@@ -82,11 +86,19 @@ impl Buffer {
             scroll_offset: 0,
             unread_count: 0,
             has_mention: false,
+            paused: false,
         }
     }
 
     /// Append a message, evicting the oldest if the scrollback limit is reached.
+    /// When paused, increments scroll_offset to keep the view position stable.
     pub fn add_message(&mut self, msg: Message, max_scrollback: usize) {
+        if self.paused && self.scroll_offset == 0 {
+            // First message while paused at bottom — start offsetting
+            self.scroll_offset = 1;
+        } else if self.paused {
+            self.scroll_offset += 1;
+        }
         self.messages.push_back(msg);
         if self.messages.len() > max_scrollback {
             self.messages.pop_front();
@@ -730,10 +742,12 @@ pub struct AppState {
 impl AppState {
     pub fn new(config: AppConfig) -> Self {
         let timestamp_format = config.ui.timestamp_format.clone();
+        let mut buffers = BTreeMap::new();
+        buffers.insert(BufferKey::Highlights, Buffer::new());
         Self {
             config,
             servers: Vec::new(),
-            buffers: BTreeMap::new(),
+            buffers,
             active_buffer: None,
             input: InputState::new(),
             focus: FocusPanel::Input,
@@ -836,11 +850,32 @@ impl AppState {
     }
 
     pub fn active_server_id(&self) -> Option<ServerId> {
-        self.active_buffer.as_ref().map(|k| match k {
-            BufferKey::ServerStatus(id) => *id,
-            BufferKey::Channel(id, _) => *id,
-            BufferKey::Query(id, _) => *id,
+        self.active_buffer.as_ref().and_then(|k| match k {
+            BufferKey::Highlights => None,
+            BufferKey::ServerStatus(id) => Some(*id),
+            BufferKey::Channel(id, _) => Some(*id),
+            BufferKey::Query(id, _) => Some(*id),
         })
+    }
+
+    /// Add a message to the global Highlights buffer with a source label prefix.
+    pub fn add_highlight(&mut self, source_label: &str, msg: &Message) {
+        let highlight_msg = Message {
+            timestamp: msg.timestamp.clone(),
+            sender: msg.sender.clone(),
+            text: format!("[{}] {}", source_label, msg.text),
+            kind: msg.kind.clone(),
+        };
+        let key = BufferKey::Highlights;
+        let max = self.config.ui.max_scrollback;
+        let is_active = self.active_buffer.as_ref() == Some(&key);
+        let buf = self.buffers.entry(key).or_insert_with(Buffer::new);
+        buf.add_message(highlight_msg, max);
+        if !is_active {
+            buf.unread_count += 1;
+            buf.has_mention = true;
+        }
+        self.dirty = true;
     }
 
     pub fn cycle_focus(&mut self) {

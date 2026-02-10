@@ -76,6 +76,35 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 ])
             }
         }
+        Some(BufferKey::Highlights) => Line::from(vec![
+            Span::styled(
+                " ★ ",
+                Style::default()
+                    .fg(Theme::ACCENT_AMBER)
+                    .bg(Theme::BG_ELEVATED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Highlights",
+                Style::default()
+                    .fg(Theme::ACCENT_AMBER)
+                    .bg(Theme::BG_ELEVATED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                " │ ",
+                Style::default()
+                    .fg(Theme::BORDER_DIM)
+                    .bg(Theme::BG_ELEVATED),
+            ),
+            Span::styled(
+                "Mentions, PMs, and notices",
+                Style::default()
+                    .fg(Theme::TEXT_SECONDARY)
+                    .bg(Theme::BG_ELEVATED)
+                    .add_modifier(Modifier::ITALIC),
+            ),
+        ]),
         Some(BufferKey::Query(_, target)) => Line::from(vec![
             Span::styled(
                 " → ",

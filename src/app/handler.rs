@@ -234,6 +234,26 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
         return vec![];
     }
 
+    // F4 to open highlights buffer
+    if key.code == KeyCode::F(4) {
+        state.set_active_buffer(BufferKey::Highlights);
+        return vec![];
+    }
+
+    // Ctrl+S to toggle pause on the active buffer
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('s') {
+        if let Some(ref buf_key) = state.active_buffer {
+            if let Some(buf) = state.buffers.get_mut(buf_key) {
+                buf.paused = !buf.paused;
+                if !buf.paused {
+                    buf.scroll_offset = 0;
+                }
+                state.dirty = true;
+            }
+        }
+        return vec![];
+    }
+
     // Tab to cycle focus (when not in input or input is empty)
     if key.code == KeyCode::Tab && state.focus != FocusPanel::Input {
         state.cycle_focus();
@@ -550,10 +570,7 @@ fn open_search_results_file(
             state.error_message(buf_key, "Search results file was empty.".to_string());
         }
         Err(e) => {
-            state.error_message(
-                buf_key,
-                format!("Failed to open search results: {}", e),
-            );
+            state.error_message(buf_key, format!("Failed to open search results: {}", e));
         }
     }
 }
@@ -613,6 +630,12 @@ fn handle_input_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
                     }
                     BufferKey::ServerStatus(_) => {
                         state.system_message(buf_key, "Cannot send messages to server status buffer. Use /msg or join a channel.".to_string());
+                    }
+                    BufferKey::Highlights => {
+                        state.system_message(
+                            buf_key,
+                            "Cannot send messages to the Highlights buffer.".to_string(),
+                        );
                     }
                 }
             }
@@ -760,6 +783,10 @@ fn scroll_down(state: &mut AppState) {
     if let Some(ref key) = state.active_buffer {
         if let Some(buf) = state.buffers.get_mut(key) {
             buf.scroll_offset = buf.scroll_offset.saturating_sub(5);
+            // Auto-unpause when scrolled back to bottom
+            if buf.scroll_offset == 0 {
+                buf.paused = false;
+            }
             state.dirty = true;
         }
     }
@@ -954,6 +981,23 @@ fn resolve_channel(state: &AppState, explicit: Option<String>) -> Option<String>
         Some(BufferKey::Channel(_, c)) => Some(c.clone()),
         _ => None,
     })
+}
+
+/// Returns `true` if a nick looks like it belongs to a bot.
+fn is_likely_bot(nick: &str) -> bool {
+    let lower = nick.to_lowercase();
+    // Contains "bot" or "serv" anywhere
+    if lower.contains("bot") || lower.contains("serv") {
+        return true;
+    }
+    // Starts with common bot prefixes
+    let bot_prefixes = ["search", "find", "book", "ebook", "lib"];
+    for prefix in &bot_prefixes {
+        if lower.starts_with(prefix) {
+            return true;
+        }
+    }
+    false
 }
 
 fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
@@ -1604,6 +1648,85 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
             }
             vec![]
         }
+        Some(commands::ParsedCommand::ChannelInfo) => {
+            if let (Some(sid), Some(BufferKey::Channel(_, ref channel))) =
+                (server_id, &state.active_buffer)
+            {
+                let channel = channel.clone();
+                let key = state.active_buffer.clone().unwrap();
+
+                // Topic
+                let topic = state
+                    .get_server(sid)
+                    .and_then(|srv| srv.topics.get(&channel).cloned());
+
+                // User list
+                let users: Vec<ChannelUser> = state
+                    .get_server(sid)
+                    .and_then(|srv| srv.users.get(&channel).cloned())
+                    .unwrap_or_default();
+
+                let total = users.len();
+                let ops = users.iter().filter(|u| u.prefix.contains('@')).count();
+                let voiced = users
+                    .iter()
+                    .filter(|u| u.prefix.contains('+') && !u.prefix.contains('@'))
+                    .count();
+                let regular = total - ops - voiced;
+
+                // Detect likely bots
+                let likely_bots: Vec<&ChannelUser> = users
+                    .iter()
+                    .filter(|u| {
+                        (u.prefix.contains('@') || u.prefix.contains('+')) && is_likely_bot(&u.nick)
+                    })
+                    .collect();
+
+                // Print summary
+                state.system_message(&key, format!("=== Channel Info: {} ===", channel));
+                match topic {
+                    Some(t) => state.system_message(&key, format!("Topic: {}", t)),
+                    None => state.system_message(&key, "No topic set".to_string()),
+                }
+                state.system_message(
+                    &key,
+                    format!(
+                        "Users: {} total ({} ops, {} voiced, {} regular)",
+                        total, ops, voiced, regular
+                    ),
+                );
+
+                let mut actions = vec![];
+                if likely_bots.is_empty() {
+                    state.system_message(&key, "No likely bots detected.".to_string());
+                } else {
+                    state.system_message(&key, "--- Likely bots ---".to_string());
+                    for bot in &likely_bots {
+                        state.system_message(&key, format!("  {}{}", bot.prefix, bot.nick));
+                    }
+                    state.system_message(
+                        &key,
+                        format!(
+                            "Sending CTCP VERSION to {} likely bots...",
+                            likely_bots.len()
+                        ),
+                    );
+                    for bot in &likely_bots {
+                        actions.push(Action::SendCtcp {
+                            server_id: sid,
+                            target: bot.nick.clone(),
+                            command: "VERSION".to_string(),
+                        });
+                    }
+                }
+                actions
+            } else {
+                if let Some(ref key) = state.active_buffer.clone() {
+                    state.error_message(key, "Use /channel inside a channel.".to_string());
+                }
+                vec![]
+            }
+        }
         Some(commands::ParsedCommand::Help) => {
             if let Some(ref key) = state.active_buffer.clone() {
                 let help = vec![
@@ -1621,6 +1744,7 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                     "  /part [#channel] [reason]       — Leave channel",
                     "  /topic <text>                   — Set channel topic",
                     "  /list                           — Request channel list",
+                    "  /channel                        — Show channel info and probe bots",
                     "  /channels                       — Open channel browser (F3)",
                     "",
                     "  Search:",
@@ -1670,6 +1794,8 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                     "  Up/Down    — Command history",
                     "  F2         — Server browser",
                     "  F3         — Channel browser",
+                    "  F4         — Highlights (mentions & PMs)",
+                    "  Ctrl+S     — Pause/unpause scrolling",
                     "  Ctrl+C     — Quit",
                 ];
                 for line in help {
@@ -1691,6 +1817,15 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
             vec![]
         }
     }
+}
+
+/// Build a source label like `"libera/#rust"` for highlight messages.
+fn build_source_label(state: &AppState, server_id: ServerId, target: &str) -> String {
+    let server_name = state
+        .get_server(server_id)
+        .map(|s| s.name.as_str())
+        .unwrap_or("unknown");
+    format!("{}/{}", server_name, target)
 }
 
 pub fn handle_irc_message(
@@ -1744,6 +1879,15 @@ pub fn handle_irc_message(
                             if state.config.behavior.bell_on_mention {
                                 state.pending_bell = true;
                             }
+                            // Add to highlights
+                            let label = build_source_label(state, server_id, target);
+                            let hl_msg = Message {
+                                timestamp: Local::now().format(&state.timestamp_format).to_string(),
+                                sender: nick_from.clone(),
+                                text: action_text.to_string(),
+                                kind: MessageKind::Action,
+                            };
+                            state.add_highlight(&label, &hl_msg);
                         }
                     }
                 } else if ctcp.starts_with("DCC ") {
@@ -1771,21 +1915,43 @@ pub fn handle_irc_message(
             };
             state.add_message_to_buffer(&key, msg);
 
-            // Check for mention
-            if let Some(srv) = state.get_server(server_id) {
-                if text.to_lowercase().contains(&srv.nickname_lower) {
-                    if let Some(buf) = state.buffers.get_mut(&key) {
-                        buf.has_mention = true;
-                    }
-                    if state.config.behavior.bell_on_mention {
-                        state.pending_bell = true;
+            // Check for mention in channel messages
+            if matches!(key, BufferKey::Channel(_, _)) {
+                if let Some(srv) = state.get_server(server_id) {
+                    if text.to_lowercase().contains(&srv.nickname_lower) {
+                        if let Some(buf) = state.buffers.get_mut(&key) {
+                            buf.has_mention = true;
+                        }
+                        if state.config.behavior.bell_on_mention {
+                            state.pending_bell = true;
+                        }
+                        // Add to highlights
+                        let label = build_source_label(state, server_id, target);
+                        let hl_msg = Message {
+                            timestamp: Local::now().format(&state.timestamp_format).to_string(),
+                            sender: nick_from.clone(),
+                            text: text.clone(),
+                            kind: MessageKind::Normal,
+                        };
+                        state.add_highlight(&label, &hl_msg);
                     }
                 }
             }
 
-            // Bell on PM
-            if matches!(key, BufferKey::Query(_, _)) && state.config.behavior.bell_on_pm {
-                state.pending_bell = true;
+            // Private messages → always add to highlights
+            if matches!(key, BufferKey::Query(_, _)) {
+                let label = build_source_label(state, server_id, &nick_from);
+                let hl_msg = Message {
+                    timestamp: Local::now().format(&state.timestamp_format).to_string(),
+                    sender: nick_from.clone(),
+                    text: text.clone(),
+                    kind: MessageKind::Normal,
+                };
+                state.add_highlight(&label, &hl_msg);
+
+                if state.config.behavior.bell_on_pm {
+                    state.pending_bell = true;
+                }
             }
         }
 
@@ -1918,18 +2084,25 @@ pub fn handle_irc_message(
                 return;
             }
 
-            let key = if target.starts_with('#') || target.starts_with('&') {
+            let is_channel = target.starts_with('#') || target.starts_with('&');
+            let key = if is_channel {
                 BufferKey::Channel(server_id, target.clone())
             } else {
                 BufferKey::ServerStatus(server_id)
             };
             let msg = Message {
                 timestamp: Local::now().format(&state.timestamp_format).to_string(),
-                sender: nick_from,
+                sender: nick_from.clone(),
                 text: text.clone(),
                 kind: MessageKind::Notice,
             };
-            state.add_message_to_buffer(&key, msg);
+            state.add_message_to_buffer(&key, msg.clone());
+
+            // Non-channel notices directed at user → add to highlights
+            if !is_channel && !nick_from.is_empty() {
+                let label = build_source_label(state, server_id, &nick_from);
+                state.add_highlight(&label, &msg);
+            }
         }
 
         Command::TOPIC(channel, topic) => {

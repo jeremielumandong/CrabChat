@@ -92,6 +92,18 @@ fn render_welcome(frame: &mut Frame, area: Rect, state: &AppState) {
     ]));
     help_lines.push(Line::from(vec![
         Span::styled(
+            "  F4 ",
+            Style::default()
+                .fg(Theme::ACCENT_TEAL)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            "Highlights (mentions & PMs)",
+            Style::default().fg(Theme::TEXT_SECONDARY),
+        ),
+    ]));
+    help_lines.push(Line::from(vec![
+        Span::styled(
             "  /server connect <name> ",
             Style::default()
                 .fg(Theme::ACCENT_TEAL)
