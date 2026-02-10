@@ -105,30 +105,7 @@ pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
                 // Auto-open search results browser if this is a SearchBot file
                 if search_results::is_search_results_file(&filename) {
                     let file_path = download_dir.join(&filename);
-                    let result = if filename.to_lowercase().ends_with(".zip") {
-                        search_results::extract_search_results_from_zip(&file_path)
-                    } else {
-                        std::fs::read_to_string(&file_path)
-                            .map(|text| search_results::parse_search_results(&text))
-                            .map_err(|e| e.into())
-                    };
-                    match result {
-                        Ok((title, items)) if !items.is_empty() => {
-                            state.search_results.open(items, title);
-                        }
-                        Ok(_) => {
-                            state.system_message(
-                                &key,
-                                "Search results file was empty.".to_string(),
-                            );
-                        }
-                        Err(e) => {
-                            state.error_message(
-                                &key,
-                                format!("Failed to parse search results: {}", e),
-                            );
-                        }
-                    }
+                    open_search_results_file(state, &file_path, &key);
                 }
             }
             vec![]
@@ -512,9 +489,7 @@ fn handle_search_results_key(state: &mut AppState, key: KeyEvent) -> Vec<Action>
                                 .map(|s| s.nickname.clone())
                                 .unwrap_or_else(|| "me".to_string());
                             let msg = Message {
-                                timestamp: Local::now()
-                                    .format(&state.timestamp_format)
-                                    .to_string(),
+                                timestamp: Local::now().format(&state.timestamp_format).to_string(),
                                 sender: nick,
                                 text: command.clone(),
                                 kind: MessageKind::Normal,
@@ -546,6 +521,40 @@ fn handle_search_results_key(state: &mut AppState, key: KeyEvent) -> Vec<Action>
             vec![]
         }
         _ => vec![],
+    }
+}
+
+/// Open a search results file (zip or txt), parse it, and open the browser.
+/// Reports errors to the given buffer.
+fn open_search_results_file(
+    state: &mut AppState,
+    file_path: &std::path::Path,
+    buf_key: &BufferKey,
+) {
+    let result = if file_path
+        .extension()
+        .map(|e| e.eq_ignore_ascii_case("zip"))
+        .unwrap_or(false)
+    {
+        search_results::extract_search_results_from_zip(file_path)
+    } else {
+        std::fs::read_to_string(file_path)
+            .map(|text| search_results::parse_search_results(&text))
+            .map_err(|e| e.into())
+    };
+    match result {
+        Ok((title, items)) if !items.is_empty() => {
+            state.search_results.open(items, title);
+        }
+        Ok(_) => {
+            state.error_message(buf_key, "Search results file was empty.".to_string());
+        }
+        Err(e) => {
+            state.error_message(
+                buf_key,
+                format!("Failed to open search results: {}", e),
+            );
+        }
     }
 }
 
@@ -772,11 +781,10 @@ fn try_nick_completion(state: &mut AppState) {
         if let Some(srv) = state.get_server(sid) {
             if let Some(users) = srv.users.get(&channel) {
                 let partial_lower = partial.to_lowercase();
-                let matches: Vec<_> = users
+                if let Some(first) = users
                     .iter()
-                    .filter(|u| u.nick.to_lowercase().starts_with(&partial_lower))
-                    .collect();
-                if let Some(first) = matches.first() {
+                    .find(|u| u.nick.to_lowercase().starts_with(&partial_lower))
+                {
                     let completion = if word_start == 0 {
                         format!("{}: ", first.nick)
                     } else {
@@ -848,11 +856,7 @@ fn try_command_completion(state: &mut AppState) {
     // Case 1: completing the command name itself
     if parts.len() == 1 && !text.ends_with(' ') {
         let partial = &cmd;
-        let matches: Vec<&&str> = COMMANDS
-            .iter()
-            .filter(|c| c.starts_with(partial.as_str()))
-            .collect();
-        if let Some(first) = matches.first() {
+        if let Some(first) = COMMANDS.iter().find(|c| c.starts_with(partial.as_str())) {
             state.input.text = format!("/{} ", first);
             state.input.cursor = state.input.text.len();
         }
@@ -864,24 +868,19 @@ fn try_command_completion(state: &mut AppState) {
         "server" => {
             let sub = parts.get(1).unwrap_or(&"").to_string();
             if parts.len() == 2 && !text.ends_with(' ') {
-                let matches: Vec<&&str> = SERVER_SUBCMDS
-                    .iter()
-                    .filter(|s| s.starts_with(sub.as_str()))
-                    .collect();
-                if let Some(first) = matches.first() {
+                if let Some(first) = SERVER_SUBCMDS.iter().find(|s| s.starts_with(sub.as_str())) {
                     state.input.text = format!("/server {} ", first);
                     state.input.cursor = state.input.text.len();
                 }
             } else if sub == "connect" || sub == "disconnect" || sub == "dc" {
                 let partial = parts.get(2).unwrap_or(&"").to_lowercase();
-                let names: Vec<String> = state
+                if let Some(first) = state
                     .config
                     .servers
                     .iter()
-                    .map(|s| s.name.clone())
-                    .filter(|n| n.to_lowercase().starts_with(&partial))
-                    .collect();
-                if let Some(first) = names.first() {
+                    .map(|s| &s.name)
+                    .find(|n| n.to_lowercase().starts_with(&partial))
+                {
                     state.input.text = format!("/server {} {}", sub, first);
                     state.input.cursor = state.input.text.len();
                 }
@@ -890,11 +889,7 @@ fn try_command_completion(state: &mut AppState) {
         "dcc" => {
             let sub = parts.get(1).unwrap_or(&"").to_string();
             if parts.len() == 2 && !text.ends_with(' ') {
-                let matches: Vec<&&str> = DCC_SUBCMDS
-                    .iter()
-                    .filter(|s| s.starts_with(sub.as_str()))
-                    .collect();
-                if let Some(first) = matches.first() {
+                if let Some(first) = DCC_SUBCMDS.iter().find(|s| s.starts_with(sub.as_str())) {
                     state.input.text = format!("/dcc {} ", first);
                     state.input.cursor = state.input.text.len();
                 }
@@ -1597,45 +1592,15 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                     }
                     Err(e) => {
                         if let Some(ref key) = state.active_buffer.clone() {
-                            state.error_message(
-                                key,
-                                format!("Cannot read download dir: {}", e),
-                            );
+                            state.error_message(key, format!("Cannot read download dir: {}", e));
                         }
                         return vec![];
                     }
                 }
             };
 
-            let result = if file_path
-                .extension()
-                .map(|e| e.eq_ignore_ascii_case("zip"))
-                .unwrap_or(false)
-            {
-                search_results::extract_search_results_from_zip(&file_path)
-            } else {
-                std::fs::read_to_string(&file_path)
-                    .map(|text| search_results::parse_search_results(&text))
-                    .map_err(|e| e.into())
-            };
-
-            match result {
-                Ok((title, items)) if !items.is_empty() => {
-                    state.search_results.open(items, title);
-                }
-                Ok(_) => {
-                    if let Some(ref key) = state.active_buffer.clone() {
-                        state.error_message(key, "Search results file was empty.".to_string());
-                    }
-                }
-                Err(e) => {
-                    if let Some(ref key) = state.active_buffer.clone() {
-                        state.error_message(
-                            key,
-                            format!("Failed to open search results: {}", e),
-                        );
-                    }
-                }
+            if let Some(ref key) = state.active_buffer.clone() {
+                open_search_results_file(state, &file_path, key);
             }
             vec![]
         }
@@ -1741,8 +1706,10 @@ pub fn handle_irc_message(
         None => String::new(),
     };
 
+    let nick_from_lower = nick_from.to_lowercase();
+
     // Ignore list check: skip messages from ignored nicks
-    if !nick_from.is_empty() && state.ignore_list.contains(&nick_from.to_lowercase()) {
+    if !nick_from.is_empty() && state.ignore_list.contains(&nick_from_lower) {
         match &message.command {
             Command::PRIVMSG(_, _) | Command::NOTICE(_, _) | Command::KICK(_, _, _) => return,
             _ => {}
@@ -1770,10 +1737,7 @@ pub fn handle_irc_message(
 
                     // Check for mention
                     if let Some(srv) = state.get_server(server_id) {
-                        if action_text
-                            .to_lowercase()
-                            .contains(&srv.nickname.to_lowercase())
-                        {
+                        if action_text.to_lowercase().contains(&srv.nickname_lower) {
                             if let Some(buf) = state.buffers.get_mut(&key) {
                                 buf.has_mention = true;
                             }
@@ -1809,7 +1773,7 @@ pub fn handle_irc_message(
 
             // Check for mention
             if let Some(srv) = state.get_server(server_id) {
-                if text.to_lowercase().contains(&srv.nickname.to_lowercase()) {
+                if text.to_lowercase().contains(&srv.nickname_lower) {
                     if let Some(buf) = state.buffers.get_mut(&key) {
                         buf.has_mention = true;
                     }
@@ -1857,13 +1821,13 @@ pub fn handle_irc_message(
             state.add_message_to_buffer(&key, msg);
 
             // Notify list check
-            if state.notify_list.contains(&nick_from.to_lowercase()) {
+            if state.notify_list.contains(&nick_from_lower) {
                 let status_key = BufferKey::ServerStatus(server_id);
                 state.system_message(
                     &status_key,
                     format!("Notify: {} is now online (joined {})", nick_from, channel),
                 );
-                state.known_online.insert(nick_from.to_lowercase());
+                state.known_online.insert(nick_from_lower.clone());
             }
         }
 
@@ -1897,13 +1861,13 @@ pub fn handle_irc_message(
             let reason_text = reason.as_deref().unwrap_or("");
 
             // Notify list check
-            if state.notify_list.contains(&nick_from.to_lowercase()) {
+            if state.notify_list.contains(&nick_from_lower) {
                 let status_key = BufferKey::ServerStatus(server_id);
                 state.system_message(
                     &status_key,
                     format!("Notify: {} is now offline (quit)", nick_from),
                 );
-                state.known_online.remove(&nick_from.to_lowercase());
+                state.known_online.remove(&nick_from_lower);
             }
 
             // Remove from all channel user lists on this server
@@ -1928,6 +1892,7 @@ pub fn handle_irc_message(
         Command::NICK(new_nick) => {
             if let Some(srv) = state.get_server_mut(server_id) {
                 if nick_from.eq_ignore_ascii_case(&srv.nickname) {
+                    srv.nickname_lower = new_nick.to_lowercase();
                     srv.nickname = new_nick.clone();
                 }
                 for (_ch, users) in srv.users.iter_mut() {

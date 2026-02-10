@@ -231,8 +231,6 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let end = total.saturating_sub(buf.scroll_offset);
     let start = end.saturating_sub(available_height);
 
-    let visible = &buf.messages[start..end];
-
     let our_nick = state
         .active_server_id()
         .and_then(|id| state.get_server(id).map(|s| s.nickname.clone()));
@@ -240,8 +238,11 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
     let parse_colors = state.config.ui.parse_mirc_colors;
     let do_urls = state.config.ui.highlight_urls;
 
-    let lines: Vec<Line> = visible
+    let lines: Vec<Line> = buf
+        .messages
         .iter()
+        .skip(start)
+        .take(end - start)
         .map(|msg| format_message(msg, our_nick.as_deref(), parse_colors, do_urls))
         .collect();
 

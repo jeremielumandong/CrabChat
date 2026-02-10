@@ -9,7 +9,7 @@ use crate::app::action::Action;
 use crate::app::event::{ServerId, TransferId};
 use crate::config::AppConfig;
 use chrono::Local;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::net::IpAddr;
 use std::time::Instant;
 
@@ -66,7 +66,7 @@ pub enum MessageKind {
 #[derive(Debug)]
 pub struct Buffer {
     /// All messages in this buffer, bounded by `max_scrollback`.
-    pub messages: Vec<Message>,
+    pub messages: VecDeque<Message>,
     /// Lines scrolled up from the bottom (0 = pinned to newest).
     pub scroll_offset: usize,
     /// Number of messages received while this buffer was not active.
@@ -78,7 +78,7 @@ pub struct Buffer {
 impl Buffer {
     pub fn new() -> Self {
         Self {
-            messages: Vec::new(),
+            messages: VecDeque::new(),
             scroll_offset: 0,
             unread_count: 0,
             has_mention: false,
@@ -87,9 +87,9 @@ impl Buffer {
 
     /// Append a message, evicting the oldest if the scrollback limit is reached.
     pub fn add_message(&mut self, msg: Message, max_scrollback: usize) {
-        self.messages.push(msg);
+        self.messages.push_back(msg);
         if self.messages.len() > max_scrollback {
-            self.messages.remove(0);
+            self.messages.pop_front();
             if self.scroll_offset > 0 {
                 self.scroll_offset = self.scroll_offset.saturating_sub(1);
             }
@@ -121,6 +121,8 @@ pub struct ServerState {
     pub tls: bool,
     /// The nickname currently registered on this server.
     pub nickname: String,
+    /// Pre-lowercased nickname for case-insensitive comparisons.
+    pub nickname_lower: String,
     pub status: ConnectionStatus,
     /// Channels the user is currently in (or intending to join).
     pub channels: Vec<String>,

@@ -27,16 +27,19 @@ pub fn render(frame: &mut Frame, area: Rect, state: &AppState) {
                 let mut sorted: Vec<_> = users.iter().collect();
                 sorted.sort_by(|a, b| {
                     let rank = |u: &ChannelUser| match u.prefix.as_str() {
-                        "~" => 0,
+                        "~" => 0u8,
                         "&" => 1,
                         "@" => 2,
                         "%" => 3,
                         "+" => 4,
                         _ => 5,
                     };
-                    rank(a)
-                        .cmp(&rank(b))
-                        .then_with(|| a.nick.to_lowercase().cmp(&b.nick.to_lowercase()))
+                    rank(a).cmp(&rank(b)).then_with(|| {
+                        a.nick
+                            .bytes()
+                            .map(|b| b.to_ascii_lowercase())
+                            .cmp(b.nick.bytes().map(|b| b.to_ascii_lowercase()))
+                    })
                 });
 
                 let mut last_group: Option<u8> = None;

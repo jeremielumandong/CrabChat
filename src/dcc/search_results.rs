@@ -5,9 +5,7 @@ use std::path::Path;
 
 /// Check if a filename looks like a SearchBot results file.
 pub fn is_search_results_file(filename: &str) -> bool {
-    filename
-        .to_lowercase()
-        .starts_with("searchbot_results_")
+    filename.to_lowercase().starts_with("searchbot_results_")
 }
 
 /// Parse search results text into a title and list of items.
@@ -116,9 +114,7 @@ fn parse_result_line(line: &str) -> Option<SearchResultItem> {
 }
 
 /// Extract search results from a zip file containing a .txt results file.
-pub fn extract_search_results_from_zip(
-    zip_path: &Path,
-) -> Result<(String, Vec<SearchResultItem>)> {
+pub fn extract_search_results_from_zip(zip_path: &Path) -> Result<(String, Vec<SearchResultItem>)> {
     let file = std::fs::File::open(zip_path)
         .with_context(|| format!("Failed to open zip: {}", zip_path.display()))?;
     let mut archive = zip::ZipArchive::new(file)
@@ -129,11 +125,7 @@ pub fn extract_search_results_from_zip(
         .find(|&i| {
             archive
                 .by_index(i)
-                .map(|f| {
-                    f.name()
-                        .to_lowercase()
-                        .ends_with(".txt")
-                })
+                .map(|f| f.name().to_lowercase().ends_with(".txt"))
                 .unwrap_or(false)
         })
         .with_context(|| "No .txt file found in zip archive")?;

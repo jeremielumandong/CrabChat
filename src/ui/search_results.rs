@@ -136,8 +136,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
                 if file_col_w < 4 {
                     String::new()
                 } else if chars.len() > file_col_w {
-                    let truncated: String =
-                        chars[..file_col_w.saturating_sub(3)].iter().collect();
+                    let truncated: String = chars[..file_col_w.saturating_sub(3)].iter().collect();
                     format!("{}...", truncated)
                 } else {
                     item.filename.clone()
