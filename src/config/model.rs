@@ -51,6 +51,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "oftc".into(),
@@ -68,6 +69,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "efnet".into(),
@@ -85,6 +87,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "undernet".into(),
@@ -102,6 +105,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "dalnet".into(),
@@ -119,6 +123,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "rizon".into(),
@@ -136,12 +141,13 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "quakenet".into(),
             host: "irc.quakenet.org".into(),
-            port: 6667,
-            tls: false,
+            port: 6697,
+            tls: true,
             nickname: nick.clone(),
             username: None,
             realname: None,
@@ -153,12 +159,13 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "ircnet".into(),
             host: "open.ircnet.net".into(),
-            port: 6667,
-            tls: false,
+            port: 6697,
+            tls: true,
             nickname: nick.clone(),
             username: None,
             realname: None,
@@ -170,6 +177,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "snoonet".into(),
@@ -187,12 +195,13 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "gamesurge".into(),
             host: "irc.gamesurge.net".into(),
-            port: 6667,
-            tls: false,
+            port: 6697,
+            tls: true,
             nickname: nick.clone(),
             username: None,
             realname: None,
@@ -204,6 +213,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "esper".into(),
@@ -221,6 +231,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "irc-hispano".into(),
@@ -238,6 +249,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "hackint".into(),
@@ -255,6 +267,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "twitch".into(),
@@ -272,6 +285,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "slashnet".into(),
@@ -289,6 +303,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "chatspike".into(),
@@ -306,6 +321,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "rezosup".into(),
@@ -323,6 +339,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "chathispano".into(),
@@ -340,6 +357,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "europnet".into(),
@@ -357,6 +375,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
         ServerConfig {
             name: "interlinked".into(),
@@ -374,6 +393,7 @@ fn default_servers() -> Vec<ServerConfig> {
             alt_nicks: vec![],
             quit_message: None,
             part_message: None,
+            accept_invalid_certs: true,
         },
     ]
 }
@@ -408,6 +428,8 @@ pub struct ServerConfig {
     pub quit_message: Option<String>,
     #[serde(default)]
     pub part_message: Option<String>,
+    #[serde(default = "default_true")]
+    pub accept_invalid_certs: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

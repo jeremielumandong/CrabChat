@@ -286,6 +286,7 @@ fn handle_server_browser_key(state: &mut AppState, key: KeyEvent) -> Vec<Action>
                     port: srv_cfg.port,
                     tls: srv_cfg.tls,
                     nick: srv_cfg.nickname,
+                    accept_invalid_certs: srv_cfg.accept_invalid_certs,
                 }];
             }
             vec![]
@@ -759,7 +760,7 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
             let nick = state.config.servers.first()
                 .map(|s| s.nickname.clone())
                 .unwrap_or_else(|| "crabchat_user".to_string());
-            vec![Action::ConnectServer { name, host, port, tls, nick }]
+            vec![Action::ConnectServer { name, host, port, tls, nick, accept_invalid_certs: false }]
         }
         Some(commands::ParsedCommand::ServerConnect { name }) => {
             if let Some(srv_cfg) = state.config.servers.iter().find(|s| s.name.eq_ignore_ascii_case(&name)) {
@@ -769,6 +770,7 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                     port: srv_cfg.port,
                     tls: srv_cfg.tls,
                     nick: srv_cfg.nickname.clone(),
+                    accept_invalid_certs: srv_cfg.accept_invalid_certs,
                 }]
             } else {
                 if let Some(ref key) = state.active_buffer.clone() {

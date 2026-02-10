@@ -126,6 +126,7 @@ async fn run_app(
                 topics: Default::default(),
                 is_away: false,
                 alt_nick_index: 0,
+                accept_invalid_certs: srv_cfg.accept_invalid_certs,
             };
             state.add_server(server);
             let srv = state.get_server(server_id).unwrap();
@@ -155,6 +156,7 @@ async fn run_app(
             topics: Default::default(),
             is_away: false,
             alt_nick_index: 0,
+            accept_invalid_certs: false,
         };
         state.add_server(server);
         let key = BufferKey::ServerStatus(server_id);
@@ -254,6 +256,7 @@ async fn run_app(
                     port,
                     tls,
                     nick,
+                    accept_invalid_certs,
                 } => {
                     let server_id = state.allocate_server_id();
                     let server = ServerState {
@@ -269,6 +272,7 @@ async fn run_app(
                         topics: Default::default(),
                         is_away: false,
                         alt_nick_index: 0,
+                        accept_invalid_certs,
                     };
                     state.add_server(server);
                     let key = BufferKey::ServerStatus(server_id);

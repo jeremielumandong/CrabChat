@@ -20,6 +20,7 @@ pub async fn spawn_connection(
     password: Option<String>,
     nick_password: Option<String>,
     channels: Vec<String>,
+    accept_invalid_certs: bool,
     event_tx: mpsc::UnboundedSender<AppEvent>,
 ) -> Result<IrcConnection> {
     let config = Config {
@@ -32,6 +33,7 @@ pub async fn spawn_connection(
         password: password,
         nick_password: nick_password,
         channels,
+        dangerously_accept_invalid_certs: Some(accept_invalid_certs),
         ..Config::default()
     };
 

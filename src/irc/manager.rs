@@ -30,6 +30,7 @@ impl IrcManager {
             None,
             None,
             server.channels.clone(),
+            server.accept_invalid_certs,
             self.event_tx.clone(),
         )
         .await?;

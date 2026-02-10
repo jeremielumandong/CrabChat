@@ -8,7 +8,7 @@ pub enum Action {
     PartChannel { server_id: ServerId, channel: String, reason: Option<String> },
     ChangeNick { server_id: ServerId, nick: String },
     SendPrivmsg { server_id: ServerId, target: String, text: String },
-    ConnectServer { name: String, host: String, port: u16, tls: bool, nick: String },
+    ConnectServer { name: String, host: String, port: u16, tls: bool, nick: String, accept_invalid_certs: bool },
     DisconnectServer { server_id: ServerId },
     DccAccept { transfer_id: usize },
     DccCancel { transfer_id: usize },

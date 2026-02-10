@@ -83,6 +83,7 @@ pub struct ServerState {
     pub topics: HashMap<String, String>,
     pub is_away: bool,
     pub alt_nick_index: usize,
+    pub accept_invalid_certs: bool,
 }
 
 #[derive(Debug, Clone)]
