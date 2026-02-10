@@ -7,6 +7,46 @@ use chrono::Local;
 use crossterm::event::{Event as CEvent, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::time::{Duration, Instant};
 
+/// Built-in slash commands available for autocomplete and tab-completion.
+const COMMANDS: &[&str] = &[
+    "server",
+    "servers",
+    "join",
+    "part",
+    "nick",
+    "msg",
+    "query",
+    "me",
+    "quit",
+    "exit",
+    "help",
+    "dcc",
+    "kick",
+    "ban",
+    "mode",
+    "op",
+    "deop",
+    "voice",
+    "devoice",
+    "topic",
+    "notice",
+    "whois",
+    "who",
+    "away",
+    "raw",
+    "quote",
+    "list",
+    "channels",
+    "slap",
+    "ignore",
+    "unignore",
+    "ignorelist",
+    "notify",
+    "ctcp",
+    "leave",
+    "browse",
+];
+
 pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
     let mut actions = match event {
         AppEvent::Terminal(cevent) => {
@@ -575,9 +615,49 @@ fn open_search_results_file(
     }
 }
 
+/// Update the autocomplete popup state based on current input text.
+/// Shows filtered command suggestions when input starts with `/` and has no space.
+fn update_autocomplete(state: &mut AppState) {
+    let text = &state.input.text;
+    if text.starts_with('/') && !text[1..].contains(' ') {
+        let partial = &text[1..].to_lowercase();
+        let suggestions: Vec<String> = COMMANDS
+            .iter()
+            .filter(|cmd| cmd.starts_with(partial.as_str()))
+            .map(|cmd| cmd.to_string())
+            .collect();
+        state.autocomplete.visible = !suggestions.is_empty();
+        state.autocomplete.suggestions = suggestions;
+        state.autocomplete.selected = 0;
+    } else {
+        state.autocomplete.visible = false;
+        state.autocomplete.suggestions.clear();
+    }
+}
+
 fn handle_input_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
     match key.code {
+        KeyCode::Esc => {
+            if state.autocomplete.visible {
+                state.autocomplete.visible = false;
+            }
+            vec![]
+        }
         KeyCode::Enter => {
+            if state.autocomplete.visible {
+                // Accept the selected suggestion
+                if let Some(cmd) = state
+                    .autocomplete
+                    .suggestions
+                    .get(state.autocomplete.selected)
+                {
+                    state.input.text = format!("/{} ", cmd);
+                    state.input.cursor = state.input.text.len();
+                }
+                state.autocomplete.visible = false;
+                return vec![];
+            }
+            state.autocomplete.visible = false;
             let text = state.input.take_text();
             if text.is_empty() {
                 return vec![];
@@ -647,10 +727,12 @@ fn handle_input_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
             } else {
                 state.input.delete_back();
             }
+            update_autocomplete(state);
             vec![]
         }
         KeyCode::Delete => {
             state.input.delete_forward();
+            update_autocomplete(state);
             vec![]
         }
         KeyCode::Left => {
@@ -670,15 +752,38 @@ fn handle_input_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
             vec![]
         }
         KeyCode::Up => {
-            state.input.history_up();
+            if state.autocomplete.visible {
+                if state.autocomplete.selected > 0 {
+                    state.autocomplete.selected -= 1;
+                }
+            } else {
+                state.input.history_up();
+            }
             vec![]
         }
         KeyCode::Down => {
-            state.input.history_down();
+            if state.autocomplete.visible {
+                if state.autocomplete.selected + 1 < state.autocomplete.suggestions.len() {
+                    state.autocomplete.selected += 1;
+                }
+            } else {
+                state.input.history_down();
+            }
             vec![]
         }
         KeyCode::Tab => {
-            if state.input.text.is_empty() {
+            if state.autocomplete.visible {
+                // Accept the selected suggestion
+                if let Some(cmd) = state
+                    .autocomplete
+                    .suggestions
+                    .get(state.autocomplete.selected)
+                {
+                    state.input.text = format!("/{} ", cmd);
+                    state.input.cursor = state.input.text.len();
+                }
+                state.autocomplete.visible = false;
+            } else if state.input.text.is_empty() {
                 state.cycle_focus();
             } else if state.input.text.starts_with('/') {
                 try_command_completion(state);
@@ -700,15 +805,20 @@ fn handle_input_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
                 match c {
                     'a' => state.input.move_home(),
                     'e' => state.input.move_end(),
-                    'w' => state.input.delete_word_back(),
+                    'w' => {
+                        state.input.delete_word_back();
+                        update_autocomplete(state);
+                    }
                     'u' => {
                         state.input.text.clear();
                         state.input.cursor = 0;
+                        state.autocomplete.visible = false;
                     }
                     _ => {}
                 }
             } else {
                 state.input.insert_char(c);
+                update_autocomplete(state);
             }
             vec![]
         }
@@ -836,44 +946,6 @@ fn try_command_completion(state: &mut AppState) {
     // Clone text to avoid borrow conflicts
     let text = state.input.text.clone();
 
-    const COMMANDS: &[&str] = &[
-        "server",
-        "servers",
-        "join",
-        "part",
-        "nick",
-        "msg",
-        "query",
-        "me",
-        "quit",
-        "exit",
-        "help",
-        "dcc",
-        "kick",
-        "ban",
-        "mode",
-        "op",
-        "deop",
-        "voice",
-        "devoice",
-        "topic",
-        "notice",
-        "whois",
-        "who",
-        "away",
-        "raw",
-        "quote",
-        "list",
-        "channels",
-        "slap",
-        "ignore",
-        "unignore",
-        "ignorelist",
-        "notify",
-        "ctcp",
-        "leave",
-        "browse",
-    ];
     const SERVER_SUBCMDS: &[&str] = &["add", "connect", "list", "ls", "disconnect", "dc"];
     const DCC_SUBCMDS: &[&str] = &["list", "ls", "accept", "get", "cancel", "close"];
 

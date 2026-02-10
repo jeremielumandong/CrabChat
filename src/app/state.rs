@@ -699,6 +699,27 @@ impl SearchResultsBrowser {
     }
 }
 
+/// State for the command autocomplete popup shown when typing `/`.
+#[derive(Debug)]
+pub struct AutocompleteState {
+    /// Filtered command suggestions matching the current input.
+    pub suggestions: Vec<String>,
+    /// Index of the currently highlighted suggestion.
+    pub selected: usize,
+    /// Whether the autocomplete popup is currently visible.
+    pub visible: bool,
+}
+
+impl AutocompleteState {
+    pub fn new() -> Self {
+        Self {
+            suggestions: Vec::new(),
+            selected: 0,
+            visible: false,
+        }
+    }
+}
+
 /// A delayed channel rejoin scheduled after being kicked.
 #[derive(Debug)]
 pub struct PendingRejoin {
@@ -736,6 +757,7 @@ pub struct AppState {
     pub server_browser: ServerBrowser,
     pub channel_browser: ChannelBrowser,
     pub search_results: SearchResultsBrowser,
+    pub autocomplete: AutocompleteState,
     pub tick_count: u64,
 }
 
@@ -770,6 +792,7 @@ impl AppState {
             server_browser: ServerBrowser::new(),
             channel_browser: ChannelBrowser::new(),
             search_results: SearchResultsBrowser::new(),
+            autocomplete: AutocompleteState::new(),
             tick_count: 0,
         }
     }
