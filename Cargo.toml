@@ -2,6 +2,12 @@
 name = "crabchat"
 version = "0.1.0"
 edition = "2021"
+description = "A secure IRC TUI client built in Rust"
+license = "MIT"
+repository = "https://github.com/jeremie/crabchat"
+readme = "README.md"
+keywords = ["irc", "tui", "chat", "terminal"]
+categories = ["command-line-utilities", "network-programming"]
 
 [dependencies]
 # TUI
@@ -32,3 +38,12 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 unicode-width = "0.2"
 rand = "0.10.0"
+
+[target.'cfg(windows)'.build-dependencies]
+winres = "0.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "z"
