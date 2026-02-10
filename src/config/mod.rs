@@ -1,3 +1,9 @@
+//! Configuration loading and persistence.
+//!
+//! Configuration is stored in TOML format at `~/.config/crabchat/config.toml`.
+//! If no config file exists, sensible defaults are used (including 20 built-in
+//! IRC server presets and a randomly generated nickname).
+
 pub mod model;
 pub mod nickname;
 
@@ -7,6 +13,8 @@ use std::path::PathBuf;
 pub use model::AppConfig;
 pub use model::LoggingConfig;
 
+/// Returns the platform-appropriate config file path
+/// (`~/.config/crabchat/config.toml` on Linux/macOS).
 fn config_path() -> PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -14,6 +22,8 @@ fn config_path() -> PathBuf {
         .join("config.toml")
 }
 
+/// Load the application configuration from disk.
+/// Returns `AppConfig::default()` if the config file does not exist.
 pub fn load_config() -> Result<AppConfig> {
     let path = config_path();
     if !path.exists() {
@@ -26,6 +36,8 @@ pub fn load_config() -> Result<AppConfig> {
     Ok(config)
 }
 
+/// Serialize and write the configuration to disk, creating parent directories
+/// as needed.
 pub fn save_config(config: &AppConfig) -> Result<()> {
     let path = config_path();
     if let Some(parent) = path.parent() {

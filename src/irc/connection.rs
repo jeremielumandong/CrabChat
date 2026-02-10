@@ -1,14 +1,23 @@
+//! Single IRC server connection management.
+//!
+//! Each connection creates an [`irc::client::Client`], performs NICK/USER
+//! identification, and spawns an async task that reads messages from the server
+//! and forwards them as [`AppEvent::IrcMessage`] to the main event channel.
+
 use crate::app::event::{AppEvent, ServerId};
 use anyhow::Result;
 use futures::StreamExt;
 use irc::client::prelude::*;
 use tokio::sync::mpsc;
 
+/// A live IRC connection, holding the sender half used to write commands.
 pub struct IrcConnection {
     pub server_id: ServerId,
     pub sender: irc::client::Sender,
 }
 
+/// Create an IRC client, identify with the server, and spawn a background
+/// message reader task. Returns the [`IrcConnection`] for sending commands.
 pub async fn spawn_connection(
     server_id: ServerId,
     host: String,

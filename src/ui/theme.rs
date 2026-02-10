@@ -1,6 +1,16 @@
+//! Visual theme — the "Midnight Ocean" color palette and style helpers.
+//!
+//! All colors are defined as `const` RGB values on the [`Theme`] struct. Style
+//! helper methods return ready-to-use `ratatui::Style` values so that UI
+//! components never hard-code colors directly.
+
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::widgets::BorderType;
 
+/// The Midnight Ocean visual theme.
+///
+/// Provides a dark color palette with teal/green/amber/rose accents, a
+/// 12-color pastel nick palette, and style helpers for every UI element.
 pub struct Theme;
 
 impl Theme {
@@ -41,6 +51,8 @@ impl Theme {
         Color::Rgb(150, 220, 160), // soft mint
     ];
 
+    /// Return a deterministic color for a nickname, based on a hash of the
+    /// nick string. The same nick always gets the same color.
     pub fn nick_color(nick: &str) -> Style {
         let hash = nick
             .bytes()

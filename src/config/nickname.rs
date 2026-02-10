@@ -1,3 +1,8 @@
+//! Random nickname generator.
+//!
+//! Produces nicknames in the format `AdjectiveNounNN` (e.g. `NeonFox42`),
+//! which fit within IRC's typical 9-character nickname limit.
+
 use rand::RngExt;
 
 const ADJECTIVES: &[&str] = &[

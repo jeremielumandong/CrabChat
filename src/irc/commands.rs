@@ -1,3 +1,9 @@
+//! User slash-command parser.
+//!
+//! Parses `/command arg1 arg2 ...` input lines into typed [`ParsedCommand`]
+//! values that the event handler can act on.
+
+/// A parsed user command. Each variant corresponds to a `/command`.
 #[derive(Debug)]
 pub enum ParsedCommand {
     ServerAdd { name: String, host: String, port: u16, tls: bool },
@@ -38,6 +44,10 @@ pub enum ParsedCommand {
     ChannelBrowser,
 }
 
+/// Parse a slash-command string into a [`ParsedCommand`].
+///
+/// Returns `None` if the input does not start with `/` or is not a recognized
+/// command. Commands are case-insensitive.
 pub fn parse_command(input: &str) -> Option<ParsedCommand> {
     let input = input.trim();
     if !input.starts_with('/') {
@@ -275,8 +285,11 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
     }
 }
 
+/// Parse a `host:port` or `host:+port` address string.
+///
+/// The `+` prefix on the port indicates explicit TLS. Port 6697 also implies
+/// TLS. Returns `(host, port, tls)`. Defaults to port 6697 with TLS.
 fn parse_host_port(addr: &str) -> (String, u16, bool) {
-    // Handle host:port or host:+port (TLS)
     if let Some(colon_pos) = addr.rfind(':') {
         let host = addr[..colon_pos].to_string();
         let port_str = &addr[colon_pos + 1..];

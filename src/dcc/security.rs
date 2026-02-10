@@ -1,3 +1,13 @@
+//! DCC security utilities.
+//!
+//! Provides defenses against common DCC attack vectors:
+//! - **Path traversal**: Filenames are sanitized and resolved paths are verified
+//!   to stay within the download directory.
+//! - **Private IP rejection**: Optionally rejects DCC offers from private,
+//!   loopback, and link-local IP addresses.
+//! - **Filename collision**: Automatically appends numeric suffixes when a file
+//!   already exists.
+
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 

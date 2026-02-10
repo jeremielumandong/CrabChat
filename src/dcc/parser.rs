@@ -1,3 +1,9 @@
+//! DCC CTCP message parser.
+//!
+//! Parses `DCC SEND <filename> <ip_decimal> <port> <filesize>` messages
+//! received via CTCP, applies security checks (private IP rejection, file
+//! size limits, filename sanitization), and creates pending transfer entries.
+
 use crate::app::event::ServerId;
 use crate::app::state::AppState;
 use std::net::{IpAddr, Ipv4Addr};
@@ -63,6 +69,7 @@ pub fn handle_ctcp_dcc(
     }
 }
 
+/// A parsed DCC SEND offer with validated fields.
 pub struct DccSendOffer {
     pub filename: String,
     pub ip: IpAddr,
@@ -70,9 +77,12 @@ pub struct DccSendOffer {
     pub size: u64,
 }
 
+/// Parse a DCC SEND CTCP string into a [`DccSendOffer`].
+///
+/// Supports both quoted and unquoted filenames. The IP address is expected in
+/// decimal (network byte order u32) format per the DCC specification.
+/// The filename is sanitized to prevent path traversal.
 pub fn parse_dcc_send(ctcp: &str) -> Option<DccSendOffer> {
-    // DCC SEND <filename> <ip> <port> <size>
-    // Filename may be quoted
     let content = ctcp.strip_prefix("DCC SEND ")?;
 
     let (filename, rest) = if content.starts_with('"') {

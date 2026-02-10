@@ -1,3 +1,9 @@
+//! Chat message logging to disk.
+//!
+//! When enabled, writes chat messages to daily log files organized by channel
+//! or query. Log files are named `<target>_<date>.log` and stored in the
+//! configured log directory (default: `~/.local/share/crabchat/logs/`).
+
 use crate::app::state::{BufferKey, Message, MessageKind};
 use crate::config::LoggingConfig;
 use std::collections::HashMap;
@@ -5,6 +11,10 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 
+/// Writes chat messages to per-channel/query daily log files.
+///
+/// File handles are cached for the lifetime of the logger to avoid repeated
+/// opens. Falls back to `/dev/null` if a log file cannot be created.
 pub struct ChatLogger {
     enabled: bool,
     log_dir: String,
@@ -24,6 +34,8 @@ impl ChatLogger {
         }
     }
 
+    /// Write a message to the appropriate log file. No-op if logging is
+    /// disabled or the buffer type is not configured for logging.
     pub fn log_message(&mut self, key: &BufferKey, msg: &Message) {
         if !self.enabled {
             return;

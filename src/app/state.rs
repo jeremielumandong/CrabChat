@@ -1,3 +1,10 @@
+//! Application state management.
+//!
+//! [`AppState`] is the single source of truth for the entire application. It
+//! holds all server connections, message buffers, UI focus state, DCC transfers,
+//! ignore/notify lists, and modal browser state. The event handler mutates
+//! `AppState` in response to incoming events and the UI reads it to render.
+
 use crate::app::action::Action;
 use crate::app::event::{ServerId, TransferId};
 use crate::config::AppConfig;
@@ -6,38 +13,65 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::IpAddr;
 use std::time::Instant;
 
+/// Identifies a message buffer — either a server status window, a channel, or
+/// a private query (DM) conversation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum BufferKey {
+    /// The server status/console window.
     ServerStatus(ServerId),
+    /// A channel conversation (e.g. `#rust`).
     Channel(ServerId, String),
+    /// A private message conversation with another user.
     Query(ServerId, String),
 }
 
+/// A single chat message displayed in a buffer.
 #[derive(Debug, Clone)]
 pub struct Message {
+    /// Formatted timestamp string (e.g. `"14:32"`).
     pub timestamp: String,
+    /// The nick of the sender, or `"***"` / `"!!!"` for system/error messages.
     pub sender: String,
+    /// The message body text.
     pub text: String,
+    /// The type of message, which determines rendering style.
     pub kind: MessageKind,
 }
 
+/// The semantic kind of a chat message, controlling how it is styled in the UI.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MessageKind {
+    /// A regular chat message (PRIVMSG).
     Normal,
+    /// A `/me` action (CTCP ACTION).
     Action,
+    /// An informational system notice.
     System,
+    /// An error notification.
     Error,
+    /// A user join notification.
     Join,
+    /// A user part (leave) notification.
     Part,
+    /// A user quit notification.
     Quit,
+    /// An IRC NOTICE message.
     Notice,
 }
 
+/// A scrollable message buffer for a server, channel, or query window.
+///
+/// Each buffer maintains its own scroll position and unread/mention indicators
+/// that the server tree panel uses to show activity badges.
 #[derive(Debug)]
 pub struct Buffer {
+    /// All messages in this buffer, bounded by `max_scrollback`.
     pub messages: Vec<Message>,
+    /// Lines scrolled up from the bottom (0 = pinned to newest).
     pub scroll_offset: usize,
+    /// Number of messages received while this buffer was not active.
     pub unread_count: usize,
+    /// Whether the user's nick was mentioned while this buffer was inactive.
     pub has_mention: bool,
 }
 
@@ -51,6 +85,7 @@ impl Buffer {
         }
     }
 
+    /// Append a message, evicting the oldest if the scrollback limit is reached.
     pub fn add_message(&mut self, msg: Message, max_scrollback: usize) {
         self.messages.push(msg);
         if self.messages.len() > max_scrollback {
@@ -62,6 +97,7 @@ impl Buffer {
     }
 }
 
+/// The connection lifecycle state of an IRC server.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ConnectionStatus {
     Disconnected,
@@ -69,62 +105,98 @@ pub enum ConnectionStatus {
     Connected,
 }
 
+/// Runtime state for a single IRC server connection.
+///
+/// Tracks the connection status, current nickname, joined channels, per-channel
+/// user lists, and topic strings.
 #[derive(Debug)]
 pub struct ServerState {
     pub id: ServerId,
+    /// User-facing label (e.g. `"libera"`).
     pub name: String,
+    /// Hostname or IP address of the IRC server.
     pub host: String,
     pub port: u16,
+    /// Whether to use TLS for this connection.
     pub tls: bool,
+    /// The nickname currently registered on this server.
     pub nickname: String,
     pub status: ConnectionStatus,
+    /// Channels the user is currently in (or intending to join).
     pub channels: Vec<String>,
+    /// Per-channel user lists, keyed by channel name.
     pub users: HashMap<String, Vec<ChannelUser>>,
+    /// Per-channel topic strings, keyed by channel name.
     pub topics: HashMap<String, String>,
+    /// Whether the user has set themselves as away on this server.
     pub is_away: bool,
+    /// Index into the `alt_nicks` list for nickname collision fallback.
     pub alt_nick_index: usize,
+    /// Whether to accept invalid/self-signed TLS certificates.
     pub accept_invalid_certs: bool,
 }
 
+/// A user present in a channel, with their mode prefix.
 #[derive(Debug, Clone)]
 pub struct ChannelUser {
     pub nick: String,
-    pub prefix: String, // "@", "+", etc.
+    /// Mode prefix character: `"@"` (op), `"+"` (voice), `"%"` (halfop), etc.
+    pub prefix: String,
 }
 
 impl ChannelUser {
+    /// Returns the nick prefixed with its mode symbol (e.g. `"@alice"`).
     pub fn display_name(&self) -> String {
         format!("{}{}", self.prefix, self.nick)
     }
 }
 
+/// Lifecycle state of a DCC file transfer.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DccTransferStatus {
+    /// Offer received but not yet accepted by the user.
     Pending,
+    /// Transfer in progress — bytes are being received.
     Active,
+    /// Transfer finished successfully.
     Completed,
+    /// Transfer failed with an error description.
     Failed(String),
+    /// Transfer was cancelled by the user.
     Cancelled,
 }
 
+/// State of a single DCC file transfer (currently receive-only).
 #[derive(Debug, Clone)]
 pub struct DccTransfer {
     pub id: TransferId,
+    /// The server on which this DCC offer was received.
     pub server_id: ServerId,
+    /// The nick that sent the DCC SEND offer.
     pub from: String,
+    /// Sanitized filename for the download.
     pub filename: String,
+    /// Total file size in bytes as advertised by the sender.
     pub size: u64,
+    /// Bytes received so far.
     pub received: u64,
+    /// IP address to connect to for the transfer.
     pub ip: IpAddr,
+    /// TCP port to connect to for the transfer.
     pub port: u16,
     pub status: DccTransferStatus,
 }
 
+/// The user's text input field state, with cursor movement and command history.
 #[derive(Debug)]
 pub struct InputState {
+    /// The current input text (UTF-8).
     pub text: String,
+    /// Byte offset of the cursor within `text`.
     pub cursor: usize,
+    /// Previously submitted input lines (newest at the end).
     pub history: Vec<String>,
+    /// Current position when browsing history (`None` = editing new text).
     pub history_index: Option<usize>,
 }
 
@@ -138,11 +210,13 @@ impl InputState {
         }
     }
 
+    /// Insert a character at the cursor position and advance the cursor.
     pub fn insert_char(&mut self, c: char) {
         self.text.insert(self.cursor, c);
         self.cursor += c.len_utf8();
     }
 
+    /// Delete the character before the cursor (Backspace).
     pub fn delete_back(&mut self) {
         if self.cursor > 0 {
             let prev = self.text[..self.cursor]
@@ -155,6 +229,7 @@ impl InputState {
         }
     }
 
+    /// Delete the character after the cursor (Delete key).
     pub fn delete_forward(&mut self) {
         if self.cursor < self.text.len() {
             let next = self.text[self.cursor..]
@@ -194,6 +269,8 @@ impl InputState {
         self.cursor = self.text.len();
     }
 
+    /// Extract the current text, reset the input, and push it to history.
+    /// Returns the submitted text (may be empty).
     pub fn take_text(&mut self) -> String {
         let text = self.text.clone();
         self.text.clear();
@@ -205,6 +282,7 @@ impl InputState {
         text
     }
 
+    /// Navigate to the previous entry in command history (Up arrow).
     pub fn history_up(&mut self) {
         if self.history.is_empty() {
             return;
@@ -219,6 +297,7 @@ impl InputState {
         self.cursor = self.text.len();
     }
 
+    /// Navigate to the next entry in command history (Down arrow).
     pub fn history_down(&mut self) {
         match self.history_index {
             Some(i) if i + 1 < self.history.len() => {
@@ -236,6 +315,7 @@ impl InputState {
         }
     }
 
+    /// Delete the word before the cursor (Alt+Backspace / Ctrl+W).
     pub fn delete_word_back(&mut self) {
         if self.cursor == 0 {
             return;
@@ -254,14 +334,21 @@ impl InputState {
     }
 }
 
+/// Which panel currently has keyboard focus (cycled with Tab).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FocusPanel {
+    /// The server/channel tree on the left.
     ServerTree,
+    /// The main message area (scrollable).
     MessageArea,
+    /// The text input box at the bottom.
     Input,
+    /// The user list on the right.
     UserList,
 }
 
+/// Modal overlay for browsing and connecting to built-in/custom IRC servers.
+/// Toggled with `F2` or `/servers`.
 #[derive(Debug)]
 pub struct ServerBrowser {
     pub visible: bool,
@@ -343,13 +430,19 @@ fn strip_color_codes(s: &str) -> String {
     result
 }
 
+/// A single entry in the channel list returned by the IRC LIST command.
 #[derive(Debug, Clone)]
 pub struct ChannelListEntry {
+    /// Channel name (e.g. `"#rust"`).
     pub name: String,
+    /// Number of users currently in the channel.
     pub users: usize,
+    /// The channel topic (with IRC formatting codes stripped).
     pub topic: String,
 }
 
+/// Modal overlay for browsing the server's channel list.
+/// Toggled with `F3` or `/channels`. Supports filtering and caching.
 #[derive(Debug)]
 pub struct ChannelBrowser {
     pub visible: bool,
@@ -483,13 +576,17 @@ impl ChannelBrowser {
     }
 }
 
+/// A delayed channel rejoin scheduled after being kicked.
 #[derive(Debug)]
 pub struct PendingRejoin {
     pub server_id: ServerId,
     pub channel: String,
+    /// When to execute the rejoin (after the configured delay).
     pub rejoin_at: Instant,
 }
 
+/// The central application state — single source of truth for the entire UI and
+/// all IRC/DCC subsystems. Mutated exclusively by the event handler.
 pub struct AppState {
     pub config: AppConfig,
     pub servers: Vec<ServerState>,

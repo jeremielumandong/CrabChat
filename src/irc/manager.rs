@@ -1,3 +1,9 @@
+//! Manages all active IRC server connections.
+//!
+//! [`IrcManager`] owns one [`IrcConnection`] per server and provides typed
+//! methods for every IRC command the application uses. Outbound PRIVMSG text is
+//! sanitized to prevent CTCP injection.
+
 use crate::app::event::{AppEvent, ServerId};
 use crate::app::state::ServerState;
 use crate::irc::connection::{spawn_connection, IrcConnection};
@@ -5,6 +11,7 @@ use anyhow::Result;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
+/// Owns and dispatches messages to all active IRC connections.
 pub struct IrcManager {
     connections: HashMap<ServerId, IrcConnection>,
     event_tx: mpsc::UnboundedSender<AppEvent>,
@@ -18,6 +25,8 @@ impl IrcManager {
         }
     }
 
+    /// Establish a new IRC connection for the given server and spawn a
+    /// background task that reads messages into the event channel.
     pub async fn connect(&mut self, server: &ServerState) -> Result<()> {
         let conn = spawn_connection(
             server.id,
@@ -39,6 +48,7 @@ impl IrcManager {
         Ok(())
     }
 
+    /// Disconnect from a server, sending a QUIT message.
     pub fn disconnect(&mut self, server_id: ServerId, message: Option<&str>) {
         if let Some(conn) = self.connections.get(&server_id) {
             let _ = conn.sender.send_quit(message.unwrap_or("Leaving"));
@@ -50,15 +60,17 @@ impl IrcManager {
         self.connections.get(&server_id).map(|c| &c.sender)
     }
 
+    /// Send a PRIVMSG. The text is sanitized to strip `\x01` bytes,
+    /// preventing CTCP injection in outbound messages.
     pub fn send_privmsg(&self, server_id: ServerId, target: &str, text: &str) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
-            // Validate: no CTCP injection in outbound messages
             let clean = text.replace('\x01', "");
             sender.send_privmsg(target, &clean)?;
         }
         Ok(())
     }
 
+    /// Send a CTCP ACTION (`/me`), wrapping the text in `\x01ACTION ...\x01`.
     pub fn send_action(&self, server_id: ServerId, target: &str, text: &str) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
             let clean = text.replace('\x01', "");
@@ -103,9 +115,10 @@ impl IrcManager {
         Ok(())
     }
 
+    /// Set channel/user modes. Uses a raw MODE command because the `irc` crate
+    /// splits MODE into typed `ChannelMODE`/`UserMODE` variants.
     pub fn send_mode(&self, server_id: ServerId, target: &str, modes: &str) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
-            // Build raw MODE command since the irc crate uses typed ChannelMODE/UserMODE
             let raw = format!("MODE {} {}", target, modes);
             sender.send(irc::client::prelude::Command::Raw(raw, vec![]))?;
         }
@@ -189,6 +202,7 @@ impl IrcManager {
         Ok(())
     }
 
+    /// Send a CTCP reply via NOTICE (per the CTCP specification).
     pub fn send_ctcp_reply(&self, server_id: ServerId, target: &str, response: &str) -> Result<()> {
         if let Some(sender) = self.get_sender(server_id) {
             let ctcp = format!("\x01{}\x01", response);
@@ -209,6 +223,7 @@ impl IrcManager {
         Ok(())
     }
 
+    /// Send QUIT to every connected server and drop all connections.
     pub fn send_quit_all(&mut self, message: Option<&str>) {
         let msg = message.unwrap_or("Leaving");
         for (_id, conn) in self.connections.drain() {

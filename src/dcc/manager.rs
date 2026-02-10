@@ -1,3 +1,9 @@
+//! DCC file transfer manager.
+//!
+//! Handles accepting and cancelling DCC SEND transfers. When a transfer is
+//! accepted, the download path is validated through the security module and
+//! a background TCP receive task is spawned.
+
 use crate::app::event::AppEvent;
 use crate::app::state::{AppState, DccTransferStatus};
 use crate::dcc::security;
@@ -5,6 +11,8 @@ use crate::dcc::transfer;
 use anyhow::Result;
 use tokio::sync::mpsc;
 
+/// Coordinates DCC file transfers — validates paths, spawns download tasks,
+/// and manages transfer lifecycle.
 pub struct DccManager {
     event_tx: mpsc::UnboundedSender<AppEvent>,
 }
@@ -14,6 +22,8 @@ impl DccManager {
         Self { event_tx }
     }
 
+    /// Accept a pending DCC transfer: validate the download path, mark the
+    /// transfer as active, and spawn a background TCP receive task.
     pub async fn accept_transfer(&self, state: &mut AppState, transfer_id: usize) -> Result<()> {
         let transfer = state
             .transfers
@@ -50,6 +60,7 @@ impl DccManager {
         Ok(())
     }
 
+    /// Cancel a transfer by marking it as [`DccTransferStatus::Cancelled`].
     pub fn cancel_transfer(&self, state: &mut AppState, transfer_id: usize) -> Result<()> {
         let transfer = state
             .transfers

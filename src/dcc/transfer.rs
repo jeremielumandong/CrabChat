@@ -1,3 +1,10 @@
+//! DCC file receive implementation.
+//!
+//! Implements the DCC SEND protocol for the receiving side: connects to the
+//! sender's TCP socket, reads data in 8 KB chunks, writes to disk, and sends
+//! 4-byte big-endian acknowledgments as required by the DCC specification.
+//! Progress events are emitted at most every 250 ms.
+
 use crate::app::event::{AppEvent, TransferId};
 use anyhow::Result;
 use std::net::IpAddr;

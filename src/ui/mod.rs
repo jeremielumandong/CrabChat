@@ -1,3 +1,17 @@
+//! Terminal UI rendering.
+//!
+//! The UI is composed of several panels arranged in a responsive layout:
+//! - **Server tree** (left): servers, channels, and queries with unread badges
+//! - **Topic bar** (top center): current channel topic or MOTD
+//! - **Message area** (center): scrollable chat messages with mIRC color support
+//! - **Input box** (bottom center): text input with cursor and history
+//! - **User list** (right): channel members with mode prefixes
+//! - **Status panel** (bottom left): DCC transfer progress gauges
+//! - **Status bar** (bottom): connection summary
+//!
+//! Modal overlays (server browser, channel browser) are rendered last, on top
+//! of the main layout.
+
 mod channel_browser;
 mod input_box;
 mod layout;
@@ -14,6 +28,7 @@ use crate::app::state::AppState;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Gauge, List, ListItem};
 
+/// Render the entire application UI for one frame.
 pub fn render(frame: &mut Frame, state: &AppState) {
     let area = frame.area();
 

@@ -1,8 +1,14 @@
+//! Configuration data model.
+//!
+//! All structs derive `Serialize`/`Deserialize` for TOML persistence.
+//! Every field has a sensible default so the application works out of the box.
+
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use super::nickname::generate_nickname;
 
+/// Root application configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -398,9 +404,12 @@ fn default_servers() -> Vec<ServerConfig> {
     ]
 }
 
+/// Configuration for a single IRC server connection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
+    /// User-facing label (e.g. `"libera"`).
     pub name: String,
+    /// Hostname or IP address of the IRC server.
     pub host: String,
     #[serde(default = "default_port")]
     pub port: u16,
@@ -432,6 +441,7 @@ pub struct ServerConfig {
     pub accept_invalid_certs: bool,
 }
 
+/// UI appearance and behavior settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig {
     #[serde(default = "default_timestamp_format")]
@@ -444,6 +454,7 @@ pub struct UiConfig {
     pub highlight_urls: bool,
 }
 
+/// DCC file transfer settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DccConfig {
     #[serde(default = "default_download_dir")]
@@ -456,6 +467,7 @@ pub struct DccConfig {
     pub auto_accept: bool,
 }
 
+/// Client behavior settings (auto-rejoin, bell notifications, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BehaviorConfig {
     #[serde(default)]
@@ -485,6 +497,7 @@ impl Default for BehaviorConfig {
     }
 }
 
+/// Chat message logging settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
     #[serde(default)]
@@ -508,6 +521,7 @@ impl Default for LoggingConfig {
     }
 }
 
+/// CTCP (Client-To-Client Protocol) auto-reply settings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CtcpConfig {
     #[serde(default = "default_true")]
