@@ -586,6 +586,105 @@ impl ChannelBrowser {
     }
 }
 
+/// A single parsed search result from a SearchBot results file.
+#[derive(Debug, Clone)]
+pub struct SearchResultItem {
+    /// The full command to send (e.g. "!Bsk Adventures of Captain Underpants.epub").
+    pub command: String,
+    /// The bot name (e.g. "Bsk").
+    pub bot: String,
+    /// The filename (e.g. "Adventures of Captain Underpants.epub").
+    pub filename: String,
+    /// The file size string from ::INFO:: (e.g. "24.0MB").
+    pub size: String,
+}
+
+/// Modal overlay for browsing search results from a SearchBot results file.
+#[derive(Debug)]
+pub struct SearchResultsBrowser {
+    pub visible: bool,
+    pub items: Vec<SearchResultItem>,
+    pub filtered: Vec<usize>,
+    pub selected: usize,
+    pub scroll_offset: usize,
+    pub filter: String,
+    pub title: String,
+}
+
+impl SearchResultsBrowser {
+    pub fn new() -> Self {
+        Self {
+            visible: false,
+            items: Vec::new(),
+            filtered: Vec::new(),
+            selected: 0,
+            scroll_offset: 0,
+            filter: String::new(),
+            title: String::new(),
+        }
+    }
+
+    pub fn open(&mut self, items: Vec<SearchResultItem>, title: String) {
+        self.items = items;
+        self.title = title;
+        self.visible = true;
+        self.selected = 0;
+        self.scroll_offset = 0;
+        self.filter.clear();
+        self.apply_filter();
+    }
+
+    pub fn close(&mut self) {
+        self.visible = false;
+    }
+
+    pub fn apply_filter(&mut self) {
+        let filter_lower = self.filter.to_lowercase();
+        self.filtered = self
+            .items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| {
+                if filter_lower.is_empty() {
+                    return true;
+                }
+                item.bot.to_lowercase().contains(&filter_lower)
+                    || item.filename.to_lowercase().contains(&filter_lower)
+            })
+            .map(|(i, _)| i)
+            .collect();
+        self.selected = 0;
+        self.scroll_offset = 0;
+    }
+
+    pub fn move_up(&mut self) {
+        if self.selected > 0 {
+            self.selected -= 1;
+        }
+    }
+
+    pub fn move_down(&mut self) {
+        if !self.filtered.is_empty() && self.selected + 1 < self.filtered.len() {
+            self.selected += 1;
+        }
+    }
+
+    pub fn ensure_visible(&mut self, visible_rows: usize) {
+        if self.selected >= self.scroll_offset + visible_rows {
+            self.scroll_offset = self.selected.saturating_sub(visible_rows - 1);
+        }
+        if self.selected < self.scroll_offset {
+            self.scroll_offset = self.selected;
+        }
+    }
+
+    pub fn selected_item(&self) -> Option<&SearchResultItem> {
+        self.filtered
+            .get(self.selected)
+            .and_then(|&idx| self.items.get(idx))
+    }
+}
+
 /// A delayed channel rejoin scheduled after being kicked.
 #[derive(Debug)]
 pub struct PendingRejoin {
@@ -622,6 +721,7 @@ pub struct AppState {
     pub last_ison_check: Instant,
     pub server_browser: ServerBrowser,
     pub channel_browser: ChannelBrowser,
+    pub search_results: SearchResultsBrowser,
     pub tick_count: u64,
 }
 
@@ -653,6 +753,7 @@ impl AppState {
             last_ison_check: Instant::now(),
             server_browser: ServerBrowser::new(),
             channel_browser: ChannelBrowser::new(),
+            search_results: SearchResultsBrowser::new(),
             tick_count: 0,
         }
     }

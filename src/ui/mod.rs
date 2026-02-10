@@ -17,6 +17,7 @@ mod input_box;
 mod layout;
 mod message_area;
 pub mod mirc_colors;
+mod search_results;
 mod server_browser;
 mod server_tree;
 mod status_bar;
@@ -49,6 +50,7 @@ pub fn render(frame: &mut Frame, state: &AppState) {
     // Overlay popups (rendered last, on top)
     server_browser::render(frame, state);
     channel_browser::render(frame, state);
+    search_results::render(frame, state);
 }
 
 fn render_status_panel(frame: &mut Frame, area: Rect, state: &AppState) {

@@ -113,6 +113,9 @@ pub enum ParsedCommand {
     },
     ServerBrowser,
     ChannelBrowser,
+    SearchResults {
+        path: Option<String>,
+    },
 }
 
 /// Parse a slash-command string into a [`ParsedCommand`].
@@ -402,6 +405,14 @@ pub fn parse_command(input: &str) -> Option<ParsedCommand> {
         }
         "servers" | "browse" => Some(ParsedCommand::ServerBrowser),
         "channels" => Some(ParsedCommand::ChannelBrowser),
+        "search" => {
+            let path = if input.len() > cmd.len() + 2 {
+                Some(input[cmd.len() + 2..].to_string())
+            } else {
+                None
+            };
+            Some(ParsedCommand::SearchResults { path })
+        }
         _ => None,
     }
 }

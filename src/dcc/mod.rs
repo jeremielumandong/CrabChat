@@ -5,5 +5,6 @@
 
 pub mod manager;
 pub mod parser;
+pub mod search_results;
 pub mod security;
 pub mod transfer;

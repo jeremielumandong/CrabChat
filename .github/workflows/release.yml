@@ -23,37 +23,31 @@ jobs:
             os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             binary: crabchat-linux-amd64
-            cross: false
 
           - name: linux-arm64
             os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             binary: crabchat-linux-arm64
-            cross: true
 
           - name: macos-amd64
             os: macos-latest
             target: x86_64-apple-darwin
             binary: crabchat-macos-amd64
-            cross: false
 
           - name: macos-arm64
             os: macos-latest
             target: aarch64-apple-darwin
             binary: crabchat-macos-arm64
-            cross: false
 
           - name: windows-amd64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: crabchat-windows-amd64.exe
-            cross: false
 
           - name: windows-arm64
             os: windows-latest
             target: aarch64-pc-windows-msvc
             binary: crabchat-windows-arm64.exe
-            cross: false
 
     steps:
       - uses: actions/checkout@v4
@@ -66,22 +60,15 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Install dependencies (Linux native)
-        if: runner.os == 'Linux' && !matrix.cross
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libssl-dev pkg-config
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
-      - name: Install cross (Linux ARM64)
-        if: matrix.cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-
-      - name: Build (cross)
-        if: matrix.cross
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Build (native)
-        if: "!matrix.cross"
+      - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Rename binary (Unix)

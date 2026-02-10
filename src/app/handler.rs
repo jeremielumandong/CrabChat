@@ -1,6 +1,7 @@
 use crate::app::action::Action;
 use crate::app::event::{AppEvent, ServerId};
 use crate::app::state::*;
+use crate::dcc::search_results;
 use crate::irc::commands;
 use chrono::Local;
 use crossterm::event::{Event as CEvent, KeyCode, KeyEvent, KeyModifiers};
@@ -88,7 +89,7 @@ pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
             if let Some(t) = state.transfers.iter_mut().find(|t| t.id == transfer_id) {
                 t.status = DccTransferStatus::Completed;
                 let filename = t.filename.clone();
-                let download_dir = state.config.dcc.download_dir.display().to_string();
+                let download_dir = state.config.dcc.download_dir.clone();
                 let key = state
                     .active_buffer
                     .clone()
@@ -97,9 +98,38 @@ pub fn handle_event(state: &mut AppState, event: AppEvent) -> Vec<Action> {
                     &key,
                     format!(
                         "DCC transfer complete: {} (saved to {})",
-                        filename, download_dir
+                        filename,
+                        download_dir.display()
                     ),
                 );
+                // Auto-open search results browser if this is a SearchBot file
+                if search_results::is_search_results_file(&filename) {
+                    let file_path = download_dir.join(&filename);
+                    let result = if filename.to_lowercase().ends_with(".zip") {
+                        search_results::extract_search_results_from_zip(&file_path)
+                    } else {
+                        std::fs::read_to_string(&file_path)
+                            .map(|text| search_results::parse_search_results(&text))
+                            .map_err(|e| e.into())
+                    };
+                    match result {
+                        Ok((title, items)) if !items.is_empty() => {
+                            state.search_results.open(items, title);
+                        }
+                        Ok(_) => {
+                            state.system_message(
+                                &key,
+                                "Search results file was empty.".to_string(),
+                            );
+                        }
+                        Err(e) => {
+                            state.error_message(
+                                &key,
+                                format!("Failed to parse search results: {}", e),
+                            );
+                        }
+                    }
+                }
             }
             vec![]
         }
@@ -187,6 +217,11 @@ fn handle_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
     // Global keybindings
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
         return vec![Action::Quit { message: None }];
+    }
+
+    // Search results browser captures all input when visible
+    if state.search_results.visible {
+        return handle_search_results_key(state, key);
     }
 
     // Channel browser captures all input when visible
@@ -413,6 +448,101 @@ fn handle_channel_browser_key(state: &mut AppState, key: KeyEvent) -> Vec<Action
                 state.channel_browser.selected = len - 1;
                 state.channel_browser.ensure_visible(20);
             }
+            vec![]
+        }
+        _ => vec![],
+    }
+}
+
+fn handle_search_results_key(state: &mut AppState, key: KeyEvent) -> Vec<Action> {
+    match key.code {
+        KeyCode::Esc => {
+            state.search_results.close();
+            vec![]
+        }
+        KeyCode::Up => {
+            state.search_results.move_up();
+            state.search_results.ensure_visible(20);
+            vec![]
+        }
+        KeyCode::Down => {
+            state.search_results.move_down();
+            state.search_results.ensure_visible(20);
+            vec![]
+        }
+        KeyCode::PageUp => {
+            for _ in 0..20 {
+                state.search_results.move_up();
+            }
+            state.search_results.ensure_visible(20);
+            vec![]
+        }
+        KeyCode::PageDown => {
+            for _ in 0..20 {
+                state.search_results.move_down();
+            }
+            state.search_results.ensure_visible(20);
+            vec![]
+        }
+        KeyCode::Home => {
+            state.search_results.selected = 0;
+            state.search_results.scroll_offset = 0;
+            vec![]
+        }
+        KeyCode::End => {
+            let len = state.search_results.filtered.len();
+            if len > 0 {
+                state.search_results.selected = len - 1;
+                state.search_results.ensure_visible(20);
+            }
+            vec![]
+        }
+        KeyCode::Enter => {
+            if let Some(item) = state.search_results.selected_item() {
+                let command = item.command.clone();
+                state.search_results.close();
+                // Send the command to the current channel
+                if let Some(ref buf_key) = state.active_buffer.clone() {
+                    match buf_key {
+                        BufferKey::Channel(server_id, channel) => {
+                            let server_id = *server_id;
+                            let channel = channel.clone();
+                            let nick = state
+                                .get_server(server_id)
+                                .map(|s| s.nickname.clone())
+                                .unwrap_or_else(|| "me".to_string());
+                            let msg = Message {
+                                timestamp: Local::now()
+                                    .format(&state.timestamp_format)
+                                    .to_string(),
+                                sender: nick,
+                                text: command.clone(),
+                                kind: MessageKind::Normal,
+                            };
+                            state.add_message_to_buffer(buf_key, msg);
+                            return vec![Action::SendMessage {
+                                server_id,
+                                target: channel,
+                                text: command,
+                            }];
+                        }
+                        _ => {
+                            state.status_message =
+                                Some("Must be in a channel to request files".to_string());
+                        }
+                    }
+                }
+            }
+            vec![]
+        }
+        KeyCode::Backspace => {
+            state.search_results.filter.pop();
+            state.search_results.apply_filter();
+            vec![]
+        }
+        KeyCode::Char(c) => {
+            state.search_results.filter.push(c);
+            state.search_results.apply_filter();
             vec![]
         }
         _ => vec![],
@@ -1423,6 +1553,92 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                 vec![]
             }
         }
+        Some(commands::ParsedCommand::SearchResults { path }) => {
+            let download_dir = state.config.dcc.download_dir.clone();
+            let file_path = if let Some(p) = path {
+                let p = p.trim();
+                let candidate = std::path::PathBuf::from(p);
+                if candidate.is_absolute() {
+                    candidate
+                } else {
+                    download_dir.join(p)
+                }
+            } else {
+                // Find the most recent search results file in the download dir
+                match std::fs::read_dir(&download_dir) {
+                    Ok(entries) => {
+                        let mut matches: Vec<_> = entries
+                            .filter_map(|e| e.ok())
+                            .filter(|e| {
+                                search_results::is_search_results_file(
+                                    &e.file_name().to_string_lossy(),
+                                )
+                            })
+                            .collect();
+                        matches.sort_by_key(|e| {
+                            std::cmp::Reverse(
+                                e.metadata()
+                                    .and_then(|m| m.modified())
+                                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH),
+                            )
+                        });
+                        if let Some(entry) = matches.first() {
+                            entry.path()
+                        } else {
+                            if let Some(ref key) = state.active_buffer.clone() {
+                                state.error_message(
+                                    key,
+                                    "No search results files found in download directory."
+                                        .to_string(),
+                                );
+                            }
+                            return vec![];
+                        }
+                    }
+                    Err(e) => {
+                        if let Some(ref key) = state.active_buffer.clone() {
+                            state.error_message(
+                                key,
+                                format!("Cannot read download dir: {}", e),
+                            );
+                        }
+                        return vec![];
+                    }
+                }
+            };
+
+            let result = if file_path
+                .extension()
+                .map(|e| e.eq_ignore_ascii_case("zip"))
+                .unwrap_or(false)
+            {
+                search_results::extract_search_results_from_zip(&file_path)
+            } else {
+                std::fs::read_to_string(&file_path)
+                    .map(|text| search_results::parse_search_results(&text))
+                    .map_err(|e| e.into())
+            };
+
+            match result {
+                Ok((title, items)) if !items.is_empty() => {
+                    state.search_results.open(items, title);
+                }
+                Ok(_) => {
+                    if let Some(ref key) = state.active_buffer.clone() {
+                        state.error_message(key, "Search results file was empty.".to_string());
+                    }
+                }
+                Err(e) => {
+                    if let Some(ref key) = state.active_buffer.clone() {
+                        state.error_message(
+                            key,
+                            format!("Failed to open search results: {}", e),
+                        );
+                    }
+                }
+            }
+            vec![]
+        }
         Some(commands::ParsedCommand::Help) => {
             if let Some(ref key) = state.active_buffer.clone() {
                 let help = vec![
@@ -1441,6 +1657,9 @@ fn handle_command(state: &mut AppState, text: &str) -> Vec<Action> {
                     "  /topic <text>                   — Set channel topic",
                     "  /list                           — Request channel list",
                     "  /channels                       — Open channel browser (F3)",
+                    "",
+                    "  Search:",
+                    "  /search [filename]              — Browse search results file",
                     "",
                     "  Communication:",
                     "  /msg <user> <text>              — Private message",
