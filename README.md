@@ -4,6 +4,12 @@ A secure IRC client with a modern terminal UI, built in Rust.
 
 CrabChat provides a full-featured IRC experience in the terminal with TLS support, DCC file transfers, mIRC color rendering, and a responsive multi-panel interface.
 
+## Screenshots
+
+| Welcome Screen | Server Browser | Channel Browser |
+|:-:|:-:|:-:|
+| ![Welcome](docs/screen1.png) | ![Server Browser](docs/screen2.png) | ![Channel Browser](docs/screen3.png) |
+
 ## Features
 
 - **Multi-server** — Connect to multiple IRC networks simultaneously
